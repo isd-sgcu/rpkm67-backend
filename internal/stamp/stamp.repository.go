@@ -6,6 +6,8 @@ import (
 )
 
 type Repository interface {
+	FindByUserId(userId string, stamp *model.Stamp) error
+	StampByUserId(userId string, stamp *model.Stamp) error
 }
 
 type repositoryImpl struct {

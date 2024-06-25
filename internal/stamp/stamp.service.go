@@ -28,6 +28,6 @@ func (s *serviceImpl) FindByUserId(_ context.Context, in *proto.FindByUserIdStam
 	return nil, nil
 }
 
-func (s *serviceImpl) StampByUserId(_ context.Context, in *proto.StampRequest) (res *proto.StampResponse, err error) {
+func (s *serviceImpl) StampByUserId(_ context.Context, in *proto.StampByUserIdRequest) (res *proto.StampByUserIdResponse, err error) {
 	return nil, nil
 }
