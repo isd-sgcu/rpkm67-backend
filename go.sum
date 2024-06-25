@@ -24,6 +24,8 @@ github.com/isd-sgcu/rpkm67-go-proto v0.1.1 h1:GO0dkfOdXrrUOguw3wthDLwFCXwIblEtYZ
 github.com/isd-sgcu/rpkm67-go-proto v0.1.1/go.mod h1:Z5SYz5kEe4W+MdqPouF0zEOiaqvg+s9I1S5d0q6e+Jw=
 github.com/isd-sgcu/rpkm67-go-proto v0.1.2 h1:sLq8HWYaqnv0VO7cD5o4pLu+Mzf2fnIJuAT7DGqRaB8=
 github.com/isd-sgcu/rpkm67-go-proto v0.1.2/go.mod h1:Z5SYz5kEe4W+MdqPouF0zEOiaqvg+s9I1S5d0q6e+Jw=
+github.com/isd-sgcu/rpkm67-go-proto v0.1.4 h1:2nZRoBrHZUMN6QogR46yzqi7RoydmqRyF496udEknGg=
+github.com/isd-sgcu/rpkm67-go-proto v0.1.4/go.mod h1:Z5SYz5kEe4W+MdqPouF0zEOiaqvg+s9I1S5d0q6e+Jw=
 github.com/jackc/pgpassfile v1.0.0 h1:/6Hmqy13Ss2zCq62VdNG8tM1wchn8zjSGOBJ6icpsIM=
 github.com/jackc/pgpassfile v1.0.0/go.mod h1:CEx0iS5ambNFdcRtxPj5JhEz+xB6uRky5eyVu/W2HEg=
 github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a h1:bbPeKD0xmW/Y25WS6cokEszi5g+S0QxI/d45PkRi7Nk=
