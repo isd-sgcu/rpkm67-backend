@@ -1,8 +1,8 @@
 package database
 
 import (
-	"github.com/isd-sgcu/rpkm67-auth/config"
-	"github.com/isd-sgcu/rpkm67-auth/internal/model"
+	"github.com/isd-sgcu/rpkm67-backend/config"
+	"github.com/isd-sgcu/rpkm67-backend/internal/model"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	gormLogger "gorm.io/gorm/logger"

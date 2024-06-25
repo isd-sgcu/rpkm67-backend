@@ -8,8 +8,10 @@ watch:
 	air
 
 mock-gen:
-	mockgen -source ./internal/auth/auth.service.go -destination ./mocks/auth/auth.service.go
-	mockgen -source ./internal/user/user.service.go -destination ./mocks/user/user.service.go
+	mockgen -source ./internal/cache/cache.repository.go -destination ./mocks/cache/cache.repository.go
+	mockgen -source ./internal/pin/pin.service.go -destination ./mocks/pin/pin.service.go
+	mockgen -source ./internal/stamp/stamp.repository.go -destination ./mocks/stamp/stamp.repository.go
+	mockgen -source ./internal/stamp/stamp.service.go -destination ./mocks/stamp/stamp.service.go
 
 test:
 	go vet ./...

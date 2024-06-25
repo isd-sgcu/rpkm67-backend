@@ -1,6 +1,6 @@
 package model
 
-import constants "github.com/isd-sgcu/rpkm67-auth/constant"
+import constants "github.com/isd-sgcu/rpkm67-backend/constant"
 
 type User struct {
 	Base

@@ -1,7 +1,7 @@
 package stamp
 
 import (
-	"github.com/isd-sgcu/rpkm67-auth/internal/model"
+	"github.com/isd-sgcu/rpkm67-backend/internal/model"
 	"gorm.io/gorm"
 )
 

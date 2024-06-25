@@ -3,7 +3,7 @@ package pin
 import (
 	"context"
 
-	"github.com/isd-sgcu/rpkm67-auth/internal/cache"
+	"github.com/isd-sgcu/rpkm67-backend/internal/cache"
 	proto "github.com/isd-sgcu/rpkm67-go-proto/rpkm67/backend/pin/v1"
 	"go.uber.org/zap"
 )

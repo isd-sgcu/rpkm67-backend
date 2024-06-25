@@ -10,17 +10,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/isd-sgcu/rpkm67-auth/config"
-	"github.com/isd-sgcu/rpkm67-auth/database"
-	"github.com/isd-sgcu/rpkm67-auth/internal/auth"
-	"github.com/isd-sgcu/rpkm67-auth/internal/cache"
-	"github.com/isd-sgcu/rpkm67-auth/internal/jwt"
-	"github.com/isd-sgcu/rpkm67-auth/internal/oauth"
-	"github.com/isd-sgcu/rpkm67-auth/internal/token"
-	"github.com/isd-sgcu/rpkm67-auth/internal/user"
-	"github.com/isd-sgcu/rpkm67-auth/logger"
-	authProto "github.com/isd-sgcu/rpkm67-go-proto/rpkm67/auth/auth/v1"
-	userProto "github.com/isd-sgcu/rpkm67-go-proto/rpkm67/auth/user/v1"
+	"github.com/isd-sgcu/rpkm67-backend/config"
+	"github.com/isd-sgcu/rpkm67-backend/database"
+	"github.com/isd-sgcu/rpkm67-backend/internal/cache"
+	"github.com/isd-sgcu/rpkm67-backend/internal/pin"
+	"github.com/isd-sgcu/rpkm67-backend/internal/stamp"
+	"github.com/isd-sgcu/rpkm67-backend/logger"
+	pinProto "github.com/isd-sgcu/rpkm67-go-proto/rpkm67/backend/pin/v1"
+	stampProto "github.com/isd-sgcu/rpkm67-go-proto/rpkm67/backend/stamp/v1"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
@@ -48,14 +45,12 @@ func main() {
 
 	cacheRepo := cache.NewRepository(redis)
 
-	userRepo := user.NewRepository(db)
-	userSvc := user.NewService(userRepo, logger.Named("userSvc"))
+	pinSvc := pin.NewService(&cacheRepo, logger.Named("pinSvc"))
 
-	jwtSvc := jwt.NewService(conf.Jwt, jwt.NewJwtStrategy(conf.Jwt.Secret), jwt.NewJwtUtils(), logger.Named("jwtSvc"))
-	tokenSvc := token.NewService(jwtSvc, cacheRepo, token.NewTokenUtils(), logger.Named("tokenSvc"))
-	oauthConfig := config.LoadOauthConfig(conf.Oauth)
-	oauthClient := oauth.NewGoogleOauthClient(oauthConfig, logger.Named("oauthClient"))
-	authSvc := auth.NewService(oauthConfig, oauthClient, userSvc, tokenSvc, auth.NewAuthUtils(), logger.Named("authSvc"))
+	stampRepo := stamp.NewRepository(db)
+	stampSvc := stamp.NewService(stampRepo, logger.Named("stampSvc"))
+
+	// selectionRepo := selection.NewRepository(db)
 
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%v", conf.App.Port))
 	if err != nil {
@@ -64,15 +59,15 @@ func main() {
 
 	grpcServer := grpc.NewServer()
 	grpc_health_v1.RegisterHealthServer(grpcServer, health.NewServer())
-	userProto.RegisterUserServiceServer(grpcServer, userSvc)
-	authProto.RegisterAuthServiceServer(grpcServer, authSvc)
+	pinProto.RegisterPinServiceServer(grpcServer, pinSvc)
+	stampProto.RegisterStampServiceServer(grpcServer, stampSvc)
 
 	reflection.Register(grpcServer)
 	go func() {
-		logger.Sugar().Infof("RPKM67 Auth starting at port %v", conf.App.Port)
+		logger.Sugar().Infof("RPKM67 Backend starting at port %v", conf.App.Port)
 
 		if err := grpcServer.Serve(listener); err != nil {
-			logger.Fatal("Failed to start RPKM67 Auth service", zap.Error(err))
+			logger.Fatal("Failed to start RPKM67 Backend service", zap.Error(err))
 		}
 	}()
 
@@ -98,7 +93,7 @@ func main() {
 	grpcServer.GracefulStop()
 	logger.Info("Closing the listener")
 	listener.Close()
-	logger.Info("RPKM67 Auth service has been shutdown gracefully")
+	logger.Info("RPKM67 Backend service has been shutdown gracefully")
 }
 
 type operation func(ctx context.Context) error

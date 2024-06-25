@@ -4,7 +4,7 @@ import (
 	"os/user"
 
 	"github.com/google/uuid"
-	"github.com/isd-sgcu/rpkm67-auth/internal/group"
+	"github.com/isd-sgcu/rpkm67-backend/internal/group"
 	"gorm.io/gorm"
 )
 

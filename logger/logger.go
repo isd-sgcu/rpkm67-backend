@@ -1,7 +1,7 @@
 package logger
 
 import (
-	"github.com/isd-sgcu/rpkm67-auth/config"
+	"github.com/isd-sgcu/rpkm67-backend/config"
 	"go.uber.org/zap"
 )
 

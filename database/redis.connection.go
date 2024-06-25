@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/isd-sgcu/rpkm67-auth/config"
+	"github.com/isd-sgcu/rpkm67-backend/config"
 	"github.com/redis/go-redis/v9"
 )
 
