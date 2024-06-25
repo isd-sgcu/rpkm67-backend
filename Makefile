@@ -21,3 +21,6 @@ test:
 
 proto:
 	go get github.com/isd-sgcu/rpkm67-go-proto@latest
+
+model:
+	go get github.com/isd-sgcu/rpkm67-model@latest
