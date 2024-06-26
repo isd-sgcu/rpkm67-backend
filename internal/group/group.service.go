@@ -3,7 +3,6 @@ package group
 import (
 	"context"
 
-	"github.com/isd-sgcu/rpkm67-backend/internal/cache"
 	proto "github.com/isd-sgcu/rpkm67-go-proto/rpkm67/backend/group/v1"
 	"go.uber.org/zap"
 )
@@ -14,14 +13,14 @@ type Service interface {
 
 type serviceImpl struct {
 	proto.UnimplementedGroupServiceServer
-	cache *cache.Repository
-	log   *zap.Logger
+	repo Repository
+	log  *zap.Logger
 }
 
-func NewService(cache *cache.Repository, log *zap.Logger) Service {
+func NewService(repo Repository, log *zap.Logger) Service {
 	return &serviceImpl{
-		cache: cache,
-		log:   log,
+		repo: repo,
+		log:  log,
 	}
 }
 
