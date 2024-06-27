@@ -37,6 +37,30 @@ func (s *serviceImpl) Create(ctx context.Context, in *proto.CreateSelectionReque
 		return nil, err
 	}
 
+	selections := &[]model.Selection{}
+	err = s.repo.FindByGroupId(in.GroupId, selections)
+	if err != nil {
+		s.log.Error("Failed to find selection", zap.Error(err))
+		return nil, err
+	}
+
+	//Check can not create selection with same order
+	for _, selection := range *selections {
+		if selection.Order == int(in.Order) {
+			s.log.Error("Failed to create selection", zap.Error(err))
+			return nil, fmt.Errorf("Can not create selection with same order")
+		}
+	}
+
+	//Check can not create selection with same baan
+	for _, selection := range *selections {
+		if selection.Baan == in.BaanId {
+			s.log.Error("Failed to create selection", zap.Error(err))
+			return nil, fmt.Errorf("Can not create selection with same baan")
+		}
+	}
+
+	//Create selection
 	selection := model.Selection{
 		GroupID: &GroupUuid,
 		Baan:    in.BaanId,
@@ -49,11 +73,13 @@ func (s *serviceImpl) Create(ctx context.Context, in *proto.CreateSelectionReque
 		return nil, err
 	}
 
-	cacheKey := fmt.Sprintf("group:%s", in.GroupId)
-	err = s.cache.SetValue(cacheKey, selection, 3600)
-	if err != nil {
-		s.log.Error("Failed to cache selection", zap.Error(err))
-	}
+	defer func() {
+		cacheKey := fmt.Sprintf("group:%s", in.GroupId)
+		err = s.cache.SetValue(cacheKey, selection, 3600)
+		if err != nil {
+			s.log.Error("Failed to cache selection", zap.Error(err))
+		}
+	}()
 
 	res := proto.CreateSelectionResponse{
 		Selection: &proto.Selection{
@@ -117,13 +143,14 @@ func (s *serviceImpl) Delete(ctx context.Context, in *proto.DeleteSelectionReque
 		s.log.Error("Failed to delete selection", zap.Error(err))
 		return nil, err
 	}
-	cacheKey := fmt.Sprintf("group:%s", in.GroupId)
 
-	err = s.cache.DeleteValue(cacheKey)
-	if err != nil {
-		s.log.Error("Failed to delete selection from cache", zap.Error(err))
-		return nil, err
-	}
+	defer func() {
+		cacheKey := fmt.Sprintf("group:%s", in.GroupId)
+		err = s.cache.DeleteValue(cacheKey)
+		if err != nil {
+			s.log.Error("Failed to delete selection from cache", zap.Error(err))
+		}
+	}()
 
 	s.log.Info("Selection deleted",
 		zap.String("group_id", in.GroupId))
