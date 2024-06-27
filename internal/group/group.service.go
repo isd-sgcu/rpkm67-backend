@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/isd-sgcu/rpkm67-backend/internal/cache"
 	proto "github.com/isd-sgcu/rpkm67-go-proto/rpkm67/backend/group/v1"
 	"go.uber.org/zap"
@@ -39,8 +40,13 @@ func (s *serviceImpl) FindOne(ctx context.Context, in *proto.FindOneGroupRequest
 		return &proto.FindOneGroupResponse{Group: &cachedGroup}, nil
 	}
 
+	userUUID, err := uuid.Parse(in.UserId)
+	if err != nil {
+		return nil, fmt.Errorf("invalid UUID format: %v", err)
+	}
+
 	// if not found cache, find group in database
-	group, err := s.repo.FindOne(in.UserId)
+	group, err := s.repo.FindOne(userUUID)
 	if err != nil {
 		s.log.Error("Failed to find group", zap.String("user_id", in.UserId), zap.Error(err))
 		return nil, err
