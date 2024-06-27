@@ -9,16 +9,12 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f h1:lO4WD4F/rVNCu3HqELle0jiPLLBs70cWOduZpkS1E78=
 github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f/go.mod h1:cuUVRXasLTGF7a8hSLbxyZXjz+1KgoB3wDUb6vlszIc=
-github.com/golang-jwt/jwt/v4 v4.5.0 h1:7cYmW1XlMY7h7ii7UhUyChSgS5wUJEnm9uZVTGqOWzg=
-github.com/golang-jwt/jwt/v4 v4.5.0/go.mod h1:m21LjoU+eqJr34lmDMbreY2eSTRJ1cv77w39/MY0Ch0=
 github.com/golang/mock v1.6.0 h1:ErTB+efbowRARo13NNdxyJji2egdxLGQhRaY+DUumQc=
 github.com/golang/mock v1.6.0/go.mod h1:p6yTPP+5HYm5mzsMV8JkE6ZKdX+/wYM6Hr+LicevLPs=
 github.com/google/go-cmp v0.6.0 h1:ofyhxvXcZhMsU5ulbFiLKl/XBFqE1GSq7atu8tAmTRI=
 github.com/google/go-cmp v0.6.0/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
 github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
 github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
-github.com/isd-sgcu/rpkm67-go-proto v0.1.5 h1:WShrm8DeVqIY1ZelgM88vW8LMnLxF6dTt650A0YkC8U=
-github.com/isd-sgcu/rpkm67-go-proto v0.1.5/go.mod h1:Z5SYz5kEe4W+MdqPouF0zEOiaqvg+s9I1S5d0q6e+Jw=
 github.com/isd-sgcu/rpkm67-go-proto v0.1.6 h1:6mubghe7HuGJYv+hgpIxJBBrmVk5UdjHjdvzykLLhQ0=
 github.com/isd-sgcu/rpkm67-go-proto v0.1.6/go.mod h1:Z5SYz5kEe4W+MdqPouF0zEOiaqvg+s9I1S5d0q6e+Jw=
 github.com/isd-sgcu/rpkm67-model v0.0.1 h1:LFn7jaawkZP1golE9B32a2KL/U/w20UFjQo2Cd/3Fhc=
