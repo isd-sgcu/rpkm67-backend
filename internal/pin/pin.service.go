@@ -16,16 +16,18 @@ type Service interface {
 
 type serviceImpl struct {
 	proto.UnimplementedPinServiceServer
-	conf *config.PinConfig
-	repo Repository
-	log  *zap.Logger
+	conf  *config.PinConfig
+	repo  Repository
+	utils Utils
+	log   *zap.Logger
 }
 
-func NewService(conf *config.PinConfig, repo Repository, log *zap.Logger) Service {
+func NewService(conf *config.PinConfig, utils Utils, repo Repository, log *zap.Logger) Service {
 	return &serviceImpl{
-		conf: conf,
-		repo: repo,
-		log:  log,
+		conf:  conf,
+		repo:  repo,
+		utils: utils,
+		log:   log,
 	}
 }
 
@@ -50,7 +52,7 @@ func (s *serviceImpl) FindAll(_ context.Context, in *proto.FindAllPinRequest) (r
 				return nil, err
 			}
 
-			code, err := generatePIN()
+			code, err := s.utils.GeneratePIN()
 			if err != nil {
 				s.log.Named("FindAll").Error("generatePIN: ", zap.Error(err))
 				return nil, err
@@ -83,7 +85,7 @@ func (s *serviceImpl) ResetPin(_ context.Context, in *proto.ResetPinRequest) (re
 		return nil, err
 	}
 
-	code, err := generatePIN()
+	code, err := s.utils.GeneratePIN()
 	if err != nil {
 		s.log.Named("ResetPin").Error("generatePIN: ", zap.Error(err))
 		return nil, err
