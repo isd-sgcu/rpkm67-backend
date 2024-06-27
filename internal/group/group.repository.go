@@ -2,7 +2,6 @@ package group
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -11,7 +10,7 @@ import (
 )
 
 type Repository interface {
-	FindOne(userId string) (*model.Group, error)
+	FindOne(userId uuid.UUID) (*model.Group, error)
 }
 
 type repositoryImpl struct {
@@ -24,20 +23,15 @@ func NewRepository(db *gorm.DB) Repository {
 	}
 }
 
-func (r *repositoryImpl) FindOne(userId string) (*model.Group, error) {
+func (r *repositoryImpl) FindOne(userId uuid.UUID) (*model.Group, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-
-	userUUID, err := uuid.Parse(userId)
-	if err != nil {
-		return nil, fmt.Errorf("invalid UUID format: %v", err)
-	}
 
 	var group model.Group
 	if err := r.Db.WithContext(ctx).
 		Preload("Members").
 		Joins("JOIN users ON users.group_id = groups.id").
-		Where("users.id = ?", userUUID).
+		Where("users.id = ?", userId).
 		First(&group).Error; err != nil {
 		return nil, err
 	}
