@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/isd-sgcu/rpkm67-backend/config"
 	"github.com/isd-sgcu/rpkm67-backend/internal/dto"
 	proto "github.com/isd-sgcu/rpkm67-go-proto/rpkm67/backend/pin/v1"
 	"go.uber.org/zap"
@@ -15,12 +16,14 @@ type Service interface {
 
 type serviceImpl struct {
 	proto.UnimplementedPinServiceServer
+	conf *config.PinConfig
 	repo Repository
 	log  *zap.Logger
 }
 
-func NewService(repo Repository, log *zap.Logger) Service {
+func NewService(conf *config.PinConfig, repo Repository, log *zap.Logger) Service {
 	return &serviceImpl{
+		conf: conf,
 		repo: repo,
 		log:  log,
 	}
@@ -28,12 +31,13 @@ func NewService(repo Repository, log *zap.Logger) Service {
 
 func (s *serviceImpl) FindAll(_ context.Context, in *proto.FindAllPinRequest) (res *proto.FindAllPinResponse, err error) {
 	res = &proto.FindAllPinResponse{}
-	keys := []string{
-		"workshop-1",
-		"workshop-2",
-		"workshop-3",
-		"workshop-4",
-		"workshop-5",
+	keys := []string{}
+
+	for i := 1; i <= s.conf.WorkshopCount; i++ {
+		keys = append(keys, fmt.Sprintf("%s-%d", s.conf.WorkshopCode, i))
+	}
+	for i := 1; i <= s.conf.LandmarkCount; i++ {
+		keys = append(keys, fmt.Sprintf("%s-%d", s.conf.LandmarkCode, i))
 	}
 
 	for _, key := range keys {
@@ -52,7 +56,9 @@ func (s *serviceImpl) FindAll(_ context.Context, in *proto.FindAllPinRequest) (r
 				return nil, err
 			}
 
-			err = s.repo.SetPin(key, &dto.Pin{Code: code})
+			pin.Code = code
+
+			err = s.repo.SetPin(key, &dto.Pin{Code: pin.Code})
 			if err != nil {
 				s.log.Named("FindAll").Error(fmt.Sprintf("SetPin: key=%s", key), zap.Error(err))
 				return nil, err

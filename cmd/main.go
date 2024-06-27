@@ -45,7 +45,7 @@ func main() {
 	// cacheRepo := cache.NewRepository(redis)
 
 	pinRepo := pin.NewRepository(redis)
-	pinSvc := pin.NewService(pinRepo, logger.Named("pinSvc"))
+	pinSvc := pin.NewService(&conf.Pin, pinRepo, logger.Named("pinSvc"))
 
 	stampRepo := stamp.NewRepository(db)
 	stampSvc := stamp.NewService(stampRepo, logger.Named("stampSvc"))
