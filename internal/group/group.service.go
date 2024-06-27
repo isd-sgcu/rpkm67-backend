@@ -58,11 +58,11 @@ func (s *serviceImpl) FindOne(ctx context.Context, in *proto.FindOneGroupRequest
 	}
 
 	groupRPC := proto.Group{
-		Id:       group.ID.String(),
-		LeaderID: group.LeaderID,
-		Token:    group.Token,
-		Members:  userInfo,
-		Baans:    nil,
+		Id:          group.ID.String(),
+		LeaderID:    group.LeaderID,
+		Token:       group.Token,
+		Members:     userInfo,
+		IsConfirmed: group.IsConfirmed,
 	}
 
 	// set cache

@@ -27,11 +27,11 @@ func (r *repositoryImpl) Create(user *model.Selection) error {
 }
 
 func (r *repositoryImpl) FindByGroupId(groupId string, selections *[]model.Selection) error {
-	return r.Db.Find(selections, "groupId = ?", groupId).Error
+	return r.Db.Find(selections, "group_id = ?", groupId).Error
 }
 
-func (r *repositoryImpl) Delete(id string) error {
-	return r.Db.Delete(&model.Selection{}, "id = ?", id).Error
+func (r *repositoryImpl) Delete(groupId string) error {
+	return r.Db.Delete(&model.Selection{}, "group_id = ?", groupId).Error
 }
 
 func (r *repositoryImpl) CountGroupByBaanId() (map[string]int, error) {
@@ -39,7 +39,7 @@ func (r *repositoryImpl) CountGroupByBaanId() (map[string]int, error) {
 		BaanId string
 		Count  int
 	}
-	if err := r.Db.Model(&model.Selection{}).Select("baan_id, count(*) as count").Group("baan_id").Scan(&result).Error; err != nil {
+	if err := r.Db.Model(&model.Selection{}).Select("baan, count(*) as count").Group("baan").Scan(&result).Error; err != nil {
 		return nil, err
 	}
 
