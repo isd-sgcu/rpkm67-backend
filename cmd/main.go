@@ -13,9 +13,11 @@ import (
 	"github.com/isd-sgcu/rpkm67-backend/config"
 	"github.com/isd-sgcu/rpkm67-backend/database"
 	"github.com/isd-sgcu/rpkm67-backend/internal/cache"
+	"github.com/isd-sgcu/rpkm67-backend/internal/group"
 	"github.com/isd-sgcu/rpkm67-backend/internal/pin"
 	"github.com/isd-sgcu/rpkm67-backend/internal/stamp"
 	"github.com/isd-sgcu/rpkm67-backend/logger"
+	groupProto "github.com/isd-sgcu/rpkm67-go-proto/rpkm67/backend/group/v1"
 	pinProto "github.com/isd-sgcu/rpkm67-go-proto/rpkm67/backend/pin/v1"
 	stampProto "github.com/isd-sgcu/rpkm67-go-proto/rpkm67/backend/stamp/v1"
 	"go.uber.org/zap"
@@ -50,6 +52,9 @@ func main() {
 	stampRepo := stamp.NewRepository(db)
 	stampSvc := stamp.NewService(stampRepo, logger.Named("stampSvc"))
 
+	groupRepo := group.NewRepository(db)
+	groupSvc := group.NewService(groupRepo, cacheRepo, logger.Named("groupSvc"))
+
 	// selectionRepo := selection.NewRepository(db)
 
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%v", conf.App.Port))
@@ -61,6 +66,7 @@ func main() {
 	grpc_health_v1.RegisterHealthServer(grpcServer, health.NewServer())
 	pinProto.RegisterPinServiceServer(grpcServer, pinSvc)
 	stampProto.RegisterStampServiceServer(grpcServer, stampSvc)
+	groupProto.RegisterGroupServiceServer(grpcServer, groupSvc)
 
 	reflection.Register(grpcServer)
 	go func() {
