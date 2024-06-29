@@ -4,12 +4,13 @@ go 1.22.4
 
 require (
 	github.com/golang/mock v1.6.0
-	github.com/isd-sgcu/rpkm67-go-proto v0.1.5
+	github.com/isd-sgcu/rpkm67-go-proto v0.1.6
 	github.com/isd-sgcu/rpkm67-model v0.0.1
 	github.com/joho/godotenv v1.5.1
 	github.com/redis/go-redis/v9 v9.5.3
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/zap v1.27.0
+	golang.org/x/exp v0.0.0-20240613232115-7f521ea00fb8
 	google.golang.org/grpc v1.64.0
 	gorm.io/driver/postgres v1.5.9
 	gorm.io/gorm v1.25.10
