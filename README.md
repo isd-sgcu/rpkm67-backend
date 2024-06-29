@@ -1,4 +1,4 @@
-# rpkm67-backend
+# rpkm67-gateway
 
 ## Stack
 
@@ -30,12 +30,20 @@
 
 ### Running all RPKM67 services (all other services are run as containers)
 1. Copy `docker-compose.qa.template.yml` and paste it in the same directory as `docker-compose.qa.yml`. Fill in the appropriate values.
-2. Run `make pull-latest-mac` or `make pull-latest-windows` to pull the latest images of other services.
-1. Run `make docker-qa`.
-2. Run `make server` or `air` for hot-reload.
+2. In `microservices/auth` folder, copy `staff.template.json` and paste it in the same directory as `staff.json`. It is the staffs' student id list (given `staff` roles instead of `user`).
+3. Run `make pull-latest-mac` or `make pull-latest-windows` to pull the latest images of other services.
+4. Run `make docker-qa`.
+5. Run `make server` or `air` for hot-reload.
 
 ### Unit Testing
 1. Run `make test`
+
+## API
+When run locally, the gateway url will be available at `localhost:3001`.
+- Swagger UI: `localhost:3001/api/v1/docs/index.html#/`
+- Grafana: `localhost:3006` (username: admin, password: 1234)
+- Prometheus: `localhost:9090`
+- Gateway's metrics endpoint: `localhost:3001/metrics`
 
 ## Other microservices/repositories of RPKM67
 - [gateway](https://github.com/isd-sgcu/rpkm67-gateway): Routing and request handling
