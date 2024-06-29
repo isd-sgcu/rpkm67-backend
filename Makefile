@@ -13,11 +13,11 @@ pull-latest-windows:
 	docker pull ghcr.io/isd-sgcu/rpkm67-store:latest
 
 docker:
-	docker rm -v -f $$(docker ps -qa) 
+	docker rm -v -f $$(docker ps -qa) || echo "No containers found. Skipping removal."
 	docker-compose up
 
 docker-qa:
-	docker rm -v -f $$(docker ps -qa)
+	docker rm -v -f $$(docker ps -qa) || echo "No containers found. Skipping removal."
 	docker-compose -f docker-compose.qa.yml up
 
 server:
