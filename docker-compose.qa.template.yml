@@ -37,6 +37,8 @@ services:
       JWT_RESET_TOKEN_TTL: 900
     networks:
       - rpkm67
+    volumes:
+      - ./microservices/auth:/app/config/staffs
     ports:
       - "3002:3002"
   
