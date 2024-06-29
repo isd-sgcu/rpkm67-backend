@@ -1,0 +1,123 @@
+version: "3.9"
+
+services:
+  gateway:
+    image: ghcr.io/isd-sgcu/rpkm67-gateway:latest
+    container_name: gateway
+    restart: unless-stopped
+    environment:
+      APP_PORT: 3001
+      APP_ENV: development
+      APP_MAX_FILE_SIZE_MB: 10
+      CORS_ORIGINS: http://localhost:3000
+      SERVICE_AUTH: http://localhost:3002
+      SERVICE_BACKEND: backend:3003
+      SERVICE_CHECKIN: checkin:3004
+      SERVICE_STORE: store:3005
+    networks:
+      - rpkm67
+    ports:
+      - "3001:3001"
+
+  auth:
+    image: ghcr.io/isd-sgcu/rpkm67-auth:latest
+    container_name: auth
+    restart: unless-stopped
+    environment:
+      APP_PORT: 3002
+      APP_ENV: development
+      DB_URL: postgres://root:1234@db:5432/rpkm67_db
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: 5678
+      JWT_SECRET: secret
+      JWT_ACCESS_TTL: 3600
+      JWT_REFRESH_TTL: 259200
+      JWT_ISSUER: rpkm67.sgcu.in.th
+      JWT_RESET_TOKEN_TTL: 900
+    networks:
+      - rpkm67
+    ports:
+      - "3002:3002"
+  
+  # backend:
+  #   image: ghcr.io/isd-sgcu/rpkm67-backend:latest
+  #   container_name: backend
+  #   restart: unless-stopped
+  #   environment:
+  #     APP_PORT: 3003
+  #     APP_ENV: development
+  #     DB_URL: postgres://root:1234@db:5432/rpkm67_db
+  #     REDIS_HOST: cache
+  #     REDIS_PORT: 6379
+  #     REDIS_PASSWORD: 5678
+  #     PIN_WORKSHOP_CODE: workshop
+  #     PIN_WORKSHOP_COUNT: 5
+  #     PIN_LANDMARK_CODE: landmark
+  #     PIN_LANDMARK_COUNT: 4
+  #   networks:
+  #     - rpkm67
+  #   ports:
+  #     - "3003:3003"
+
+  checkin:
+    image: ghcr.io/isd-sgcu/rpkm67-checkin:latest
+    container_name: checkin
+    restart: unless-stopped
+    environment:
+      APP_PORT: 3004
+      APP_ENV: development
+      DB_URL: postgres://root:1234@db:5432/rpkm67_db
+    networks:
+      - rpkm67
+    ports:
+      - "3004:3004"
+
+  store:
+    image: ghcr.io/isd-sgcu/rpkm67-store:latest
+    container_name: store
+    restart: unless-stopped
+    environment:
+      APP_PORT: 3005
+      APP_ENV: development
+      APP_MAX_FILE_SIZE_MB: 20
+      STORE_ENDPOINT: endpoint
+      STORE_ACCESS_KEY: access_key
+      STORE_SECRET_KEY: secret_key
+      STORE_USE_SSL: true
+      STORE_BUCKET_NAME: rpkm67-local
+    networks:
+      - rpkm67
+    ports:
+      - "3005:3005"
+
+  db:
+    image: postgres:15.1-alpine3.17
+    container_name: db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: "1234"
+      POSTGRES_DB: rpkm67_db
+    networks:
+      - rpkm67
+    volumes:
+      - ./volumes/postgres:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  cache:
+    image: redis:7.2.3-alpine
+    container_name: cache
+    restart: unless-stopped
+    environment:
+      REDIS_HOST: localhost
+      REDIS_PASSWORD: "5678"
+    networks:
+      - rpkm67
+    ports:
+      - "6379:6379"
+
+networks:
+  rpkm67:
+    name: rpkm67

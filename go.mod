@@ -3,7 +3,6 @@ module github.com/isd-sgcu/rpkm67-backend
 go 1.22.4
 
 require (
-	github.com/golang-jwt/jwt/v4 v4.5.0
 	github.com/golang/mock v1.6.0
 	github.com/isd-sgcu/rpkm67-go-proto v0.1.5
 	github.com/isd-sgcu/rpkm67-model v0.0.1
