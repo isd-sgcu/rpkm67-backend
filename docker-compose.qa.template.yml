@@ -35,6 +35,9 @@ services:
       JWT_REFRESH_TTL: 259200
       JWT_ISSUER: rpkm67.sgcu.in.th
       JWT_RESET_TOKEN_TTL: 900
+      OAUTH_CLIENT_ID: client_id
+      OAUTH_CLIENT_SECRET: client_secret
+      OAUTH_REDIRECT_URI: http://localhost:3000
     networks:
       - rpkm67
     volumes:
