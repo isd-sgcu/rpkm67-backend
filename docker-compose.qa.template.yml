@@ -11,7 +11,7 @@ services:
       APP_MAX_FILE_SIZE_MB: 10
       CORS_ORIGINS: http://localhost:3000
       SERVICE_AUTH: auth:3002
-      SERVICE_BACKEND: localhost:3003
+      SERVICE_BACKEND: host.docker.internal:3003
       SERVICE_CHECKIN: checkin:3004
       SERVICE_STORE: store:3005
     networks:
