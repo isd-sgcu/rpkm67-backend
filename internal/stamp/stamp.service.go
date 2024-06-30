@@ -6,6 +6,8 @@ import (
 	proto "github.com/isd-sgcu/rpkm67-go-proto/rpkm67/backend/stamp/v1"
 	"github.com/isd-sgcu/rpkm67-model/model"
 	"go.uber.org/zap"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type Service interface {
@@ -31,7 +33,7 @@ func (s *serviceImpl) FindByUserId(_ context.Context, in *proto.FindByUserIdStam
 	err = s.repo.FindByUserId(in.UserId, stamp)
 	if err != nil {
 		s.log.Named("FindByUserId").Error("FindByUserId", zap.Error(err))
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	return &proto.FindByUserIdStampResponse{Stamp: s.modelToProto(stamp)}, nil
@@ -43,7 +45,7 @@ func (s *serviceImpl) StampByUserId(_ context.Context, in *proto.StampByUserIdRe
 	err = s.repo.FindByUserId(in.UserId, stamp)
 	if err != nil {
 		s.log.Named("FindByUserId").Error("FindByUserId", zap.Error(err))
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	// stamp.Stamp string 00000000000, 01000100001
@@ -52,7 +54,7 @@ func (s *serviceImpl) StampByUserId(_ context.Context, in *proto.StampByUserIdRe
 	err = s.repo.StampByUserId(in.UserId, stamp)
 	if err != nil {
 		s.log.Named("StampByUserId").Error("StampByUserId", zap.Error(err))
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	return &proto.StampByUserIdResponse{Stamp: s.modelToProto(stamp)}, nil

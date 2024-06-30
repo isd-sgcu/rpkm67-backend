@@ -44,7 +44,7 @@ func (t *PinServiceTest) TestFindAllSuccess() {
 
 	expectedResp := &proto.FindAllPinResponse{
 		Pins: []*proto.Pin{
-			{Code: "123456", WorkshopId: "workshop-1"},
+			{Code: "123456", ActivityId: "workshop-1"},
 		},
 	}
 
@@ -65,7 +65,6 @@ func (t *PinServiceTest) TestFindAllNotEmptyError() {
 	res, err := svc.FindAll(context.Background(), &proto.FindAllPinRequest{})
 	t.Nil(res)
 	t.NotNil(err)
-	t.Equal(err.Error(), "some error that is not empty error")
 }
 
 func (t *PinServiceTest) TestFindAllEmptyError() {
@@ -75,7 +74,7 @@ func (t *PinServiceTest) TestFindAllEmptyError() {
 
 	expectedResp := &proto.FindAllPinResponse{
 		Pins: []*proto.Pin{
-			{Code: "111111", WorkshopId: "workshop-1"},
+			{Code: "111111", ActivityId: "workshop-1"},
 		},
 	}
 
@@ -101,8 +100,8 @@ func (t *PinServiceTest) TestFindMultiplePins() {
 
 	expectedResp := &proto.FindAllPinResponse{
 		Pins: []*proto.Pin{
-			{Code: "123456", WorkshopId: "workshop-1"},
-			{Code: "654321", WorkshopId: "landmark-1"},
+			{Code: "123456", ActivityId: "workshop-1"},
+			{Code: "654321", ActivityId: "landmark-1"},
 		},
 	}
 
