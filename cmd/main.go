@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/isd-sgcu/rpkm67-backend/config"
+	"github.com/isd-sgcu/rpkm67-backend/constant"
 	"github.com/isd-sgcu/rpkm67-backend/database"
 	"github.com/isd-sgcu/rpkm67-backend/internal/pin"
 	"github.com/isd-sgcu/rpkm67-backend/internal/stamp"
@@ -49,7 +50,7 @@ func main() {
 	pinSvc := pin.NewService(&conf.Pin, pinUtils, pinRepo, logger.Named("pinSvc"))
 
 	stampRepo := stamp.NewRepository(db)
-	stampSvc := stamp.NewService(stampRepo, logger.Named("stampSvc"))
+	stampSvc := stamp.NewService(stampRepo, constant.ActivityIdToIdx, logger.Named("stampSvc"))
 
 	// selectionRepo := selection.NewRepository(db)
 
