@@ -72,7 +72,7 @@ func (s *serviceImpl) StampByUserId(_ context.Context, in *proto.StampByUserIdRe
 
 func (s *serviceImpl) modelToProto(stamp *model.Stamp) *proto.Stamp {
 	return &proto.Stamp{
-		UserId: stamp.User.ID.String(),
+		UserId: stamp.UserID.String(),
 		PointA: int32(stamp.PointA),
 		PointB: int32(stamp.PointB),
 		PointC: int32(stamp.PointC),
