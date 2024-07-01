@@ -57,9 +57,13 @@ func (s *serviceImpl) StampByUserId(_ context.Context, in *proto.StampByUserIdRe
 	}
 
 	tempStrStamp := []byte(stamp.Stamp)
+	if tempStrStamp[actIdx] == '1' {
+		return nil, status.Error(codes.Internal, errors.New("Already stamped").Error())
+	}
+
 	tempStrStamp[actIdx] = '1'
 	stamp.Stamp = string(tempStrStamp)
-	s.skillsCalc(stamp, actIdx)
+	s.addNewScore(stamp, actIdx)
 
 	err = s.repo.StampByUserId(in.UserId, stamp)
 	if err != nil {
@@ -81,7 +85,7 @@ func (s *serviceImpl) modelToProto(stamp *model.Stamp) *proto.Stamp {
 	}
 }
 
-func (s *serviceImpl) skillsCalc(stamp *model.Stamp, idx int) {
+func (s *serviceImpl) addNewScore(stamp *model.Stamp, idx int) {
 	if idx <= 1 {
 		stamp.PointB += 2
 		stamp.PointD += 2
