@@ -158,8 +158,8 @@ func (s *serviceImpl) Delete(ctx context.Context, in *proto.DeleteSelectionReque
 	return &proto.DeleteSelectionResponse{Success: true}, nil
 }
 
-func (s *serviceImpl) CountGroupByBaanId(ctx context.Context, in *proto.CountByBaanIdSelectionRequest) (*proto.CountByBaanIdSelectionResponse, error) {
-	count, err := s.repo.CountGroupByBaanId()
+func (s *serviceImpl) CountByBaanId(ctx context.Context, in *proto.CountByBaanIdSelectionRequest) (*proto.CountByBaanIdSelectionResponse, error) {
+	count, err := s.repo.CountByBaanId()
 	if err != nil {
 		s.log.Error("Failed to count group by baan id", zap.Error(err))
 		return nil, err
