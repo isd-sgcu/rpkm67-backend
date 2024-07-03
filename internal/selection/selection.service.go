@@ -9,6 +9,8 @@ import (
 	proto "github.com/isd-sgcu/rpkm67-go-proto/rpkm67/backend/selection/v1"
 	"github.com/isd-sgcu/rpkm67-model/model"
 	"go.uber.org/zap"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type Service interface {
@@ -33,37 +35,37 @@ func NewService(repo Repository, cache cache.Repository, log *zap.Logger) Servic
 func (s *serviceImpl) Create(ctx context.Context, in *proto.CreateSelectionRequest) (*proto.CreateSelectionResponse, error) {
 	GroupUuid, err := uuid.Parse(in.GroupId)
 	if err != nil {
-		s.log.Error("Failed to parse group id", zap.Error(err))
-		return nil, err
+		s.log.Named("Create").Error(fmt.Sprintf("Parse group id: %s", in.GroupId), zap.Error(err))
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	selections := &[]model.Selection{}
 	err = s.repo.FindByGroupId(in.GroupId, selections)
 	if err != nil {
-		s.log.Error("Failed to find selection", zap.Error(err))
-		return nil, err
+		s.log.Named("Create").Error(fmt.Sprintf("FindByGroupId: group_id=%s", in.GroupId), zap.Error(err))
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	//Check can not create selection with same order
 	for _, selection := range *selections {
 		if selection.Order == int(in.Order) {
-			s.log.Error("Failed to create selection", zap.Error(err))
-			return nil, fmt.Errorf("Can not create selection with same order")
+			s.log.Named("Create").Error(fmt.Sprintf("Failed to create selection: order=%d", in.Order), zap.Error(err))
+			return nil, status.Error(codes.Internal, "Can not create selection with same order")
 		}
 	}
 
 	//Check can not create selection with same baan
 	for _, selection := range *selections {
 		if selection.Baan == in.BaanId {
-			s.log.Error("Failed to create selection", zap.Error(err))
-			return nil, fmt.Errorf("Can not create selection with same baan")
+			s.log.Named("Create").Error(fmt.Sprintf("Failed to create selection: baan_id=%s", in.BaanId), zap.Error(err))
+			return nil, status.Error(codes.Internal, "Can not create selection with same baan")
 		}
 	}
 
 	//Order must be in range 1-5
 	if in.Order < 1 || in.Order > 5 {
-		s.log.Error("Failed to create selection", zap.Error(err))
-		return nil, fmt.Errorf("Order must be in range 1-5")
+		s.log.Named("Create").Error(fmt.Sprintf("Failed to create selection: order=%d", in.Order), zap.Error(err))
+		return nil, status.Error(codes.Internal, "Order must be in range 1-5")
 	}
 
 	//Create selection
@@ -75,8 +77,8 @@ func (s *serviceImpl) Create(ctx context.Context, in *proto.CreateSelectionReque
 
 	err = s.repo.Create(&selection)
 	if err != nil {
-		s.log.Error("Failed to create selection", zap.Error(err))
-		return nil, err
+		s.log.Named("Create").Error(fmt.Sprintf("Create: group_id=%s, baan_id=%s", in.GroupId, in.BaanId), zap.Error(err))
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	res := proto.CreateSelectionResponse{
@@ -100,8 +102,8 @@ func (s *serviceImpl) FindByGroupId(ctx context.Context, in *proto.FindByGroupId
 
 	err := s.repo.FindByGroupId(in.GroupId, selection)
 	if err != nil {
-		s.log.Error("Failed to find selection", zap.String("group_id", in.GroupId), zap.Error(err))
-		return nil, err
+		s.log.Named("FindByGroupId").Error(fmt.Sprintf("FindByGroupId: group_id=%s", in.GroupId), zap.Error(err))
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	selectionRPC := []*proto.Selection{}
@@ -129,8 +131,8 @@ func (s *serviceImpl) FindByGroupId(ctx context.Context, in *proto.FindByGroupId
 func (s *serviceImpl) Delete(ctx context.Context, in *proto.DeleteSelectionRequest) (*proto.DeleteSelectionResponse, error) {
 	err := s.repo.Delete(in.GroupId, in.BaanId)
 	if err != nil {
-		s.log.Error("Failed to delete selection", zap.Error(err))
-		return nil, err
+		s.log.Named("Delete").Error(fmt.Sprintf("Delete: group_id=%s, baan_id=%s", in.GroupId, in.BaanId), zap.Error(err))
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	s.log.Info("Selection deleted",
@@ -145,7 +147,7 @@ func (s *serviceImpl) CountByBaanId(ctx context.Context, in *proto.CountByBaanId
 
 	err := s.cache.GetValue(cachedKey, &cachedCount)
 	if err == nil {
-		s.log.Info("Count group by baan id found in cache")
+		s.log.Named("CountByBaanId").Info("Count group by baan id found in cache")
 		return &proto.CountByBaanIdSelectionResponse{
 			BaanCounts: cachedCount.BaanCounts,
 		}, nil
@@ -153,8 +155,8 @@ func (s *serviceImpl) CountByBaanId(ctx context.Context, in *proto.CountByBaanId
 
 	count, err := s.repo.CountByBaanId()
 	if err != nil {
-		s.log.Error("Failed to count group by baan id", zap.Error(err))
-		return nil, err
+		s.log.Named("CountByBaanId").Error("CountByBaanId", zap.Error(err))
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	countRPC := []*proto.BaanCount{}
@@ -171,7 +173,7 @@ func (s *serviceImpl) CountByBaanId(ctx context.Context, in *proto.CountByBaanId
 	}
 
 	if err := s.cache.SetValue(cachedKey, &res, 3600); err != nil {
-		s.log.Warn("Failed to set count group by baan id in cache", zap.Error(err))
+		s.log.Named("CountByBaanId").Warn("Failed to set count group by baan id in cache", zap.Error(err))
 	}
 
 	s.log.Info("Count group by baan id",
@@ -185,20 +187,20 @@ func (s *serviceImpl) Update(ctx context.Context, in *proto.UpdateSelectionReque
 
 	err := s.repo.FindByGroupId(in.Selection.GroupId, oldSelections)
 	if err != nil {
-		s.log.Error("Failed to find selection", zap.String("group_id", in.Selection.GroupId), zap.Error(err))
-		return nil, err
+		s.log.Named("Update").Error(fmt.Sprintf("FindByGroupId: group_id=%s", in.Selection.GroupId), zap.Error(err))
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	groupUUID, err := uuid.Parse(in.Selection.GroupId)
 	if err != nil {
-		s.log.Error("Failed to parse group id", zap.Error(err))
-		return nil, err
+		s.log.Named("Update").Error(fmt.Sprintf("Parse group id: %s", in.Selection.GroupId), zap.Error(err))
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	//Order must be in range 1-5
 	if in.Selection.Order < 1 || in.Selection.Order > 5 {
-		s.log.Error("Failed to create selection", zap.Error(err))
-		return nil, fmt.Errorf("Order must be in range 1-5")
+		s.log.Named("Update").Error(fmt.Sprintf("Failed to update selection: order=%d", in.Selection.Order), zap.Error(err))
+		return nil, status.Error(codes.Internal, "Order must be in range 1-5")
 	}
 
 	newSelection := model.Selection{
@@ -228,13 +230,13 @@ func (s *serviceImpl) Update(ctx context.Context, in *proto.UpdateSelectionReque
 	} else if baanExists && !orderExists {
 		updateErr = s.repo.UpdateExistBaanNewOrder(&newSelection, oldSelections)
 	} else {
-		s.log.Error("Invalid update scenario", zap.String("group_id", in.Selection.GroupId), zap.String("baan_id", in.Selection.BaanId))
-		return nil, err
+		s.log.Named("Update").Error(fmt.Sprintf("Invalid update scenario: group_id=%s, baan_id=%s", in.Selection.GroupId, in.Selection.BaanId))
+		return nil, status.Error(codes.Internal, "Invalid update scenario")
 	}
 
 	if updateErr != nil {
-		s.log.Error("Failed to update selection", zap.String("group_id", in.Selection.GroupId), zap.Error(updateErr))
-		return nil, updateErr
+		s.log.Named("Update").Error(fmt.Sprintf("Update: group_id=%s, baan_id=%s", in.Selection.GroupId, in.Selection.BaanId), zap.Error(updateErr))
+		return nil, status.Error(codes.Internal, updateErr.Error())
 	}
 
 	res := proto.UpdateSelectionResponse{
