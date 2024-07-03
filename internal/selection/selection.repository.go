@@ -8,7 +8,7 @@ import (
 type Repository interface {
 	Create(user *model.Selection) error
 	FindByGroupId(groupId string, selections *[]model.Selection) error
-	Delete(groupId string) error
+	Delete(groupId string, baanId string) error
 	CountByBaanId() (map[string]int, error)
 	UpdateNewBaanExistOrder(updateSelection *model.Selection, selections *[]model.Selection) error
 	UpdateExistBaanExistOrder(updateSelection *model.Selection, selections *[]model.Selection) error
@@ -33,8 +33,8 @@ func (r *repositoryImpl) FindByGroupId(groupId string, selections *[]model.Selec
 	return r.Db.Find(selections, "group_id = ?", groupId).Error
 }
 
-func (r *repositoryImpl) Delete(groupId string) error {
-	return r.Db.Delete(&model.Selection{}, "group_id = ?", groupId).Error
+func (r *repositoryImpl) Delete(groupId string, baanId string) error {
+	return r.Db.Delete(&model.Selection{}, "group_id = ? AND baan = ?", groupId, baanId).Error
 }
 
 func (r *repositoryImpl) CountByBaanId() (map[string]int, error) {

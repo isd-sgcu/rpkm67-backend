@@ -144,7 +144,7 @@ func (s *serviceImpl) FindByGroupId(ctx context.Context, in *proto.FindByGroupId
 }
 
 func (s *serviceImpl) Delete(ctx context.Context, in *proto.DeleteSelectionRequest) (*proto.DeleteSelectionResponse, error) {
-	err := s.repo.Delete(in.GroupId)
+	err := s.repo.Delete(in.GroupId, in.BaanId)
 	if err != nil {
 		s.log.Error("Failed to delete selection", zap.Error(err))
 		return nil, err
