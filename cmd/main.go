@@ -13,10 +13,15 @@ import (
 	"github.com/isd-sgcu/rpkm67-backend/config"
 	"github.com/isd-sgcu/rpkm67-backend/constant"
 	"github.com/isd-sgcu/rpkm67-backend/database"
+	"github.com/isd-sgcu/rpkm67-backend/internal/cache"
+	"github.com/isd-sgcu/rpkm67-backend/internal/group"
 	"github.com/isd-sgcu/rpkm67-backend/internal/pin"
+	"github.com/isd-sgcu/rpkm67-backend/internal/selection"
 	"github.com/isd-sgcu/rpkm67-backend/internal/stamp"
 	"github.com/isd-sgcu/rpkm67-backend/logger"
+	groupProto "github.com/isd-sgcu/rpkm67-go-proto/rpkm67/backend/group/v1"
 	pinProto "github.com/isd-sgcu/rpkm67-go-proto/rpkm67/backend/pin/v1"
+	selectionProto "github.com/isd-sgcu/rpkm67-go-proto/rpkm67/backend/selection/v1"
 	stampProto "github.com/isd-sgcu/rpkm67-go-proto/rpkm67/backend/stamp/v1"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -43,7 +48,7 @@ func main() {
 		panic(fmt.Sprintf("Failed to connect to redis: %v", err))
 	}
 
-	// cacheRepo := cache.NewRepository(redis)
+	cacheRepo := cache.NewRepository(redis)
 
 	pinRepo := pin.NewRepository(redis)
 	pinUtils := pin.NewUtils()
@@ -52,7 +57,11 @@ func main() {
 	stampRepo := stamp.NewRepository(db)
 	stampSvc := stamp.NewService(stampRepo, constant.ActivityIdToIdx, logger.Named("stampSvc"))
 
-	// selectionRepo := selection.NewRepository(db)
+	groupRepo := group.NewRepository(db)
+	groupSvc := group.NewService(groupRepo, cacheRepo, logger.Named("groupSvc"))
+
+	selectionRepo := selection.NewRepository(db)
+	selectionSvc := selection.NewService(selectionRepo, cacheRepo, logger.Named("selectionSvc"))
 
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%v", conf.App.Port))
 	if err != nil {
@@ -63,6 +72,8 @@ func main() {
 	grpc_health_v1.RegisterHealthServer(grpcServer, health.NewServer())
 	pinProto.RegisterPinServiceServer(grpcServer, pinSvc)
 	stampProto.RegisterStampServiceServer(grpcServer, stampSvc)
+	groupProto.RegisterGroupServiceServer(grpcServer, groupSvc)
+	selectionProto.RegisterSelectionServiceServer(grpcServer, selectionSvc)
 
 	reflection.Register(grpcServer)
 	go func() {
