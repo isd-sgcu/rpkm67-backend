@@ -88,7 +88,7 @@ func (r *repositoryImpl) UpdateExistBaanExistOrder(updateSelection *model.Select
 		if err := tx.Where(`"order" = ?`, existingBaanSelection.Order).Model(&existingBaanSelection).Update("baan", existingOrderSelection.Baan).Error; err != nil {
 			return err
 		}
-		if err := tx.Where(`"order" = ?`, existingOrderSelection.Order).Model(&existingOrderSelection).Update("baan", existingBaanSelection.Baan).Error; err != nil {
+		if err := tx.Where(`"order" = ?`, existingOrderSelection.Order).Model(&existingOrderSelection).Update("baan", updateSelection.Baan).Error; err != nil {
 			return err
 		}
 
