@@ -79,14 +79,6 @@ func (s *serviceImpl) Create(ctx context.Context, in *proto.CreateSelectionReque
 		return nil, err
 	}
 
-	defer func() {
-		cacheKey := fmt.Sprintf("group:%s", in.GroupId)
-		err = s.cache.SetValue(cacheKey, selection, 3600)
-		if err != nil {
-			s.log.Error("Failed to cache selection", zap.Error(err))
-		}
-	}()
-
 	res := proto.CreateSelectionResponse{
 		Selection: &proto.Selection{
 			Id:      "",
@@ -104,18 +96,9 @@ func (s *serviceImpl) Create(ctx context.Context, in *proto.CreateSelectionReque
 }
 
 func (s *serviceImpl) FindByGroupId(ctx context.Context, in *proto.FindByGroupIdSelectionRequest) (*proto.FindByGroupIdSelectionResponse, error) {
-	cacheKey := fmt.Sprintf("group:%s", in.GroupId)
-	var cachedSelection []*proto.Selection
-
-	err := s.cache.GetValue(cacheKey, &cachedSelection)
-	if err == nil {
-		s.log.Info("Group found in cache", zap.String("user_id", in.GroupId))
-		return &proto.FindByGroupIdSelectionResponse{Selections: cachedSelection}, nil
-	}
-
 	selection := &[]model.Selection{}
 
-	err = s.repo.FindByGroupId(in.GroupId, selection)
+	err := s.repo.FindByGroupId(in.GroupId, selection)
 	if err != nil {
 		s.log.Error("Failed to find selection", zap.String("group_id", in.GroupId), zap.Error(err))
 		return nil, err
@@ -150,14 +133,6 @@ func (s *serviceImpl) Delete(ctx context.Context, in *proto.DeleteSelectionReque
 		return nil, err
 	}
 
-	defer func() {
-		cacheKey := fmt.Sprintf("group:%s", in.GroupId)
-		err = s.cache.DeleteValue(cacheKey)
-		if err != nil {
-			s.log.Error("Failed to delete selection from cache", zap.Error(err))
-		}
-	}()
-
 	s.log.Info("Selection deleted",
 		zap.String("group_id", in.GroupId))
 
@@ -165,6 +140,17 @@ func (s *serviceImpl) Delete(ctx context.Context, in *proto.DeleteSelectionReque
 }
 
 func (s *serviceImpl) CountByBaanId(ctx context.Context, in *proto.CountByBaanIdSelectionRequest) (*proto.CountByBaanIdSelectionResponse, error) {
+	cachedKey := "countByBaanId"
+	var cachedCount *proto.CountByBaanIdSelectionResponse
+
+	err := s.cache.GetValue(cachedKey, &cachedCount)
+	if err == nil {
+		s.log.Info("Count group by baan id found in cache")
+		return &proto.CountByBaanIdSelectionResponse{
+			BaanCounts: cachedCount.BaanCounts,
+		}, nil
+	}
+
 	count, err := s.repo.CountByBaanId()
 	if err != nil {
 		s.log.Error("Failed to count group by baan id", zap.Error(err))
@@ -182,6 +168,10 @@ func (s *serviceImpl) CountByBaanId(ctx context.Context, in *proto.CountByBaanId
 
 	res := proto.CountByBaanIdSelectionResponse{
 		BaanCounts: countRPC,
+	}
+
+	if err := s.cache.SetValue(cachedKey, &res, 3600); err != nil {
+		s.log.Warn("Failed to set count group by baan id in cache", zap.Error(err))
 	}
 
 	s.log.Info("Count group by baan id",
