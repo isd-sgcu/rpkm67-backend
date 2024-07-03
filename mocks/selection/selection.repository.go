@@ -34,19 +34,19 @@ func (m *MockRepository) EXPECT() *MockRepositoryMockRecorder {
 	return m.recorder
 }
 
-// CountGroupByBaanId mocks base method.
-func (m *MockRepository) CountGroupByBaanId() (map[string]int, error) {
+// CountByBaanId mocks base method.
+func (m *MockRepository) CountByBaanId() (map[string]int, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CountGroupByBaanId")
+	ret := m.ctrl.Call(m, "CountByBaanId")
 	ret0, _ := ret[0].(map[string]int)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// CountGroupByBaanId indicates an expected call of CountGroupByBaanId.
-func (mr *MockRepositoryMockRecorder) CountGroupByBaanId() *gomock.Call {
+// CountByBaanId indicates an expected call of CountByBaanId.
+func (mr *MockRepositoryMockRecorder) CountByBaanId() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountGroupByBaanId", reflect.TypeOf((*MockRepository)(nil).CountGroupByBaanId))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountByBaanId", reflect.TypeOf((*MockRepository)(nil).CountByBaanId))
 }
 
 // Create mocks base method.

@@ -60,6 +60,12 @@ func (s *serviceImpl) Create(ctx context.Context, in *proto.CreateSelectionReque
 		}
 	}
 
+	//Order must be in range 1-5
+	if in.Order < 1 || in.Order > 5 {
+		s.log.Error("Failed to create selection", zap.Error(err))
+		return nil, fmt.Errorf("Order must be in range 1-5")
+	}
+
 	//Create selection
 	selection := model.Selection{
 		GroupID: &GroupUuid,
@@ -180,6 +186,74 @@ func (s *serviceImpl) CountByBaanId(ctx context.Context, in *proto.CountByBaanId
 
 	s.log.Info("Count group by baan id",
 		zap.Any("count", count))
+
+	return &res, nil
+}
+
+func (s *serviceImpl) Update(ctx context.Context, in *proto.UpdateSelectionRequest) (*proto.UpdateSelectionResponse, error) {
+	oldSelections := &[]model.Selection{}
+
+	err := s.repo.FindByGroupId(in.Selection.GroupId, oldSelections)
+	if err != nil {
+		s.log.Error("Failed to find selection", zap.String("group_id", in.Selection.GroupId), zap.Error(err))
+		return nil, err
+	}
+
+	groupUUID, err := uuid.Parse(in.Selection.GroupId)
+	if err != nil {
+		s.log.Error("Failed to parse group id", zap.Error(err))
+		return nil, err
+	}
+
+	//Order must be in range 1-5
+	if in.Selection.Order < 1 || in.Selection.Order > 5 {
+		s.log.Error("Failed to create selection", zap.Error(err))
+		return nil, fmt.Errorf("Order must be in range 1-5")
+	}
+
+	newSelection := model.Selection{
+		GroupID: &groupUUID,
+		Baan:    in.Selection.BaanId,
+		Order:   int(in.Selection.Order),
+	}
+
+	// Check if the new Baan exists in oldSelections
+	baanExists := false
+	orderExists := false
+	for _, oldSel := range *oldSelections {
+		if oldSel.Baan == newSelection.Baan {
+			baanExists = true
+		}
+		if oldSel.Order == newSelection.Order {
+			orderExists = true
+		}
+	}
+
+	var updateErr error
+
+	if !baanExists && orderExists {
+		updateErr = s.repo.UpdateNewBaanExistOrder(&newSelection, oldSelections)
+	} else if baanExists && orderExists {
+		updateErr = s.repo.UpdateExistBaanExistOrder(&newSelection, oldSelections)
+	} else if baanExists && !orderExists {
+		updateErr = s.repo.UpdateExistBaanNewOrder(&newSelection, oldSelections)
+	} else {
+		s.log.Error("Invalid update scenario", zap.String("group_id", in.Selection.GroupId), zap.String("baan_id", in.Selection.BaanId))
+		return nil, err
+	}
+
+	if updateErr != nil {
+		s.log.Error("Failed to update selection", zap.String("group_id", in.Selection.GroupId), zap.Error(updateErr))
+		return nil, updateErr
+	}
+
+	res := proto.UpdateSelectionResponse{
+		Success: true,
+	}
+
+	s.log.Info("Selection updated",
+		zap.String("group_id", in.Selection.GroupId),
+		zap.String("baan_id", in.Selection.BaanId))
 
 	return &res, nil
 }
