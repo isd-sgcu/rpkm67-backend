@@ -11,9 +11,8 @@ import (
 	"time"
 
 	"github.com/isd-sgcu/rpkm67-backend/config"
+	"github.com/isd-sgcu/rpkm67-backend/constant"
 	"github.com/isd-sgcu/rpkm67-backend/database"
-	"github.com/isd-sgcu/rpkm67-backend/internal/cache"
-	"github.com/isd-sgcu/rpkm67-backend/internal/group"
 	"github.com/isd-sgcu/rpkm67-backend/internal/pin"
 	"github.com/isd-sgcu/rpkm67-backend/internal/selection"
 	"github.com/isd-sgcu/rpkm67-backend/internal/stamp"
@@ -47,15 +46,14 @@ func main() {
 		panic(fmt.Sprintf("Failed to connect to redis: %v", err))
 	}
 
-	cacheRepo := cache.NewRepository(redis)
+	// cacheRepo := cache.NewRepository(redis)
 
-	pinSvc := pin.NewService(&cacheRepo, logger.Named("pinSvc"))
+	pinRepo := pin.NewRepository(redis)
+	pinUtils := pin.NewUtils()
+	pinSvc := pin.NewService(&conf.Pin, pinUtils, pinRepo, logger.Named("pinSvc"))
 
 	stampRepo := stamp.NewRepository(db)
-	stampSvc := stamp.NewService(stampRepo, logger.Named("stampSvc"))
-
-	groupRepo := group.NewRepository(db)
-	groupSvc := group.NewService(groupRepo, cacheRepo, logger.Named("groupSvc"))
+	stampSvc := stamp.NewService(stampRepo, constant.ActivityIdToIdx, logger.Named("stampSvc"))
 
 	selectionRepo := selection.NewRepository(db)
 	selectionSvc := selection.NewService(selectionRepo, cacheRepo, logger.Named("selectionSvc"))

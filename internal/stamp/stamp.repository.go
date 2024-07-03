@@ -21,9 +21,9 @@ func NewRepository(db *gorm.DB) Repository {
 }
 
 func (r *repositoryImpl) FindByUserId(userId string, stamp *model.Stamp) error {
-	return r.Db.First(stamp, "userId = ?", userId).Error
+	return r.Db.First(stamp, "user_id = ?", userId).Error
 }
 
 func (r *repositoryImpl) StampByUserId(userId string, stamp *model.Stamp) error {
-	return r.Db.Model(stamp).Where("userId = ?", userId).Updates(stamp).Error
+	return r.Db.Model(stamp).Where("user_id = ?", userId).Updates(stamp).Error
 }

@@ -33,3 +33,4 @@ coverage.html
 .DS_store
 tmp
 staff.json
+docker-compose.qa.yml

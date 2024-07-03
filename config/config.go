@@ -22,10 +22,17 @@ type RedisConfig struct {
 	Password string
 }
 
+type PinConfig struct {
+	WorkshopCode  string
+	WorkshopCount int
+	LandmarkCode  string
+	LandmarkCount int
+}
 type Config struct {
 	App   AppConfig
 	Db    DbConfig
 	Redis RedisConfig
+	Pin   PinConfig
 }
 
 func LoadConfig() (*Config, error) {
@@ -56,10 +63,27 @@ func LoadConfig() (*Config, error) {
 		Password: os.Getenv("REDIS_PASSWORD"),
 	}
 
+	workshopCount, err := strconv.ParseInt(os.Getenv("PIN_WORKSHOP_COUNT"), 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	landmarkCount, err := strconv.ParseInt(os.Getenv("PIN_LANDMARK_COUNT"), 10, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	pinConfig := PinConfig{
+		WorkshopCode:  os.Getenv("PIN_WORKSHOP_CODE"),
+		WorkshopCount: int(workshopCount),
+		LandmarkCode:  os.Getenv("PIN_LANDMARK_CODE"),
+		LandmarkCount: int(landmarkCount),
+	}
+
 	return &Config{
 		App:   appConfig,
 		Db:    dbConfig,
 		Redis: redisConfig,
+		Pin:   pinConfig,
 	}, nil
 }
 
