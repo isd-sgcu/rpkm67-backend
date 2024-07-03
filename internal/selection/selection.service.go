@@ -33,7 +33,7 @@ func NewService(repo Repository, cache cache.Repository, log *zap.Logger) Servic
 }
 
 func (s *serviceImpl) Create(ctx context.Context, in *proto.CreateSelectionRequest) (*proto.CreateSelectionResponse, error) {
-	GroupUuid, err := uuid.Parse(in.GroupId)
+	groupUUID, err := uuid.Parse(in.GroupId)
 	if err != nil {
 		s.log.Named("Create").Error(fmt.Sprintf("Parse group id: %s", in.GroupId), zap.Error(err))
 		return nil, status.Error(codes.Internal, err.Error())
@@ -70,7 +70,7 @@ func (s *serviceImpl) Create(ctx context.Context, in *proto.CreateSelectionReque
 
 	//Create selection
 	selection := model.Selection{
-		GroupID: &GroupUuid,
+		GroupID: &groupUUID,
 		Baan:    in.BaanId,
 		Order:   int(in.Order),
 	}
