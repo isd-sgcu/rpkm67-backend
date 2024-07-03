@@ -224,11 +224,11 @@ func (s *serviceImpl) Update(ctx context.Context, in *proto.UpdateSelectionReque
 	var updateErr error
 
 	if !baanExists && orderExists {
-		updateErr = s.repo.UpdateNewBaanExistOrder(&newSelection, oldSelections)
+		updateErr = s.repo.UpdateNewBaanExistOrder(&newSelection)
 	} else if baanExists && orderExists {
-		updateErr = s.repo.UpdateExistBaanExistOrder(&newSelection, oldSelections)
+		updateErr = s.repo.UpdateExistBaanExistOrder(&newSelection)
 	} else if baanExists && !orderExists {
-		updateErr = s.repo.UpdateExistBaanNewOrder(&newSelection, oldSelections)
+		updateErr = s.repo.UpdateExistBaanNewOrder(&newSelection)
 	} else {
 		s.log.Named("Update").Error(fmt.Sprintf("Invalid update scenario: group_id=%s, baan_id=%s", in.Selection.GroupId, in.Selection.BaanId))
 		return nil, status.Error(codes.Internal, "Invalid update scenario")
