@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/isd-sgcu/rpkm67-backend/config"
+	"github.com/isd-sgcu/rpkm67-backend/constant"
 	"github.com/isd-sgcu/rpkm67-backend/database"
 	"github.com/isd-sgcu/rpkm67-backend/internal/cache"
 	"github.com/isd-sgcu/rpkm67-backend/internal/group"
@@ -49,10 +50,12 @@ func main() {
 
 	cacheRepo := cache.NewRepository(redis)
 
-	pinSvc := pin.NewService(&cacheRepo, logger.Named("pinSvc"))
+	pinRepo := pin.NewRepository(redis)
+	pinUtils := pin.NewUtils()
+	pinSvc := pin.NewService(&conf.Pin, pinUtils, pinRepo, logger.Named("pinSvc"))
 
 	stampRepo := stamp.NewRepository(db)
-	stampSvc := stamp.NewService(stampRepo, logger.Named("stampSvc"))
+	stampSvc := stamp.NewService(stampRepo, constant.ActivityIdToIdx, logger.Named("stampSvc"))
 
 	groupRepo := group.NewRepository(db)
 	groupSvc := group.NewService(groupRepo, cacheRepo, logger.Named("groupSvc"))
