@@ -88,3 +88,52 @@ func (s *serviceImpl) FindOne(ctx context.Context, in *proto.FindOneGroupRequest
 
 	return &res, nil
 }
+
+func (s *serviceImpl) FindByToken(ctx context.Context, in *proto.FindByTokenGroupRequest) (*proto.FindByTokenGroupResponse, error) {
+	cacheKey := fmt.Sprintf("group:%s", in.Token)
+	var cachedGroup proto.Group
+
+	// try to retreive from cache
+	err := s.cache.GetValue(cacheKey, &cachedGroup)
+	if err == nil {
+		s.log.Info("Group found in cache", zap.String("token", in.Token))
+		return nil, nil
+	}
+
+	// if not found cache, find group in database
+	group, err := s.repo.FindByToken(in.Token)
+	if err != nil {
+		s.log.Error("Failed to find group", zap.String("token", in.Token), zap.Error(err))
+		return nil, err
+	}
+
+	leader := group.Members[0]
+	leaderInfo := proto.UserInfo{
+		Id:        leader.ID.String(),
+		Firstname: leader.Firstname,
+		Lastname:  leader.Lastname,
+		ImageUrl:  leader.PhotoUrl,
+	}
+
+	res := proto.FindByTokenGroupResponse{
+		Id:     group.ID.String(),
+		Token:  group.Token,
+		Leader: &leaderInfo,
+	}
+
+	// set cache
+	if err := s.cache.SetValue(cacheKey, &res, 3600); err != nil { // cache นาน 1 ชั่วโมง
+		s.log.Warn("Failed to set response in cache", zap.String("token", in.Token), zap.Error(err))
+	}
+
+	s.log.Info("FindByToken group service completed",
+		zap.String("group_id", group.ID.String()),
+		zap.String("token", in.Token),
+		zap.Bool("from_cache", false))
+
+	return &res, nil
+}
+
+func (s *serviceImpl) Update(ctx context.Context, in *proto.UpdateGroupRequest) (*proto.UpdateGroupResponse, error) {
+	return nil, nil
+}
