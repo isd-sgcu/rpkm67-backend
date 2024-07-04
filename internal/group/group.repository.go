@@ -12,9 +12,9 @@ import (
 type Repository interface {
 	FindOne(userId uuid.UUID) (*model.Group, error)
 	FindByToken(token string) (*model.Group, error)
-	Update(group *model.Group, updatedGroupData *model.Group) error
+	Update(LeaderID uuid.UUID, group *model.Group) error
 	Create(group *model.Group) error
-	Join(userId uuid.UUID, group *model.Group) error
+	Join(user uuid.UUID, group *model.Group) error
 	DeleteMember(userId uuid.UUID, group *model.Group) error
 }
 
@@ -59,15 +59,15 @@ func (r *repositoryImpl) FindByToken(token string) (*model.Group, error) {
 	return &group, nil
 }
 
-func (r *repositoryImpl) Update(group *model.Group, updatedGroupData *model.Group) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
+func (r *repositoryImpl) Update(LeaderID uuid.UUID, group *model.Group) error {
+	return r.Db.Transaction(func(tx *gorm.DB) error {
+		var existingGroup model.Group
+		if err := tx.Where(`LeaderID = ?`, LeaderID).Model(&existingGroup).Updates(group).Error; err != nil {
+			return err
+		}
 
-	if err := r.Db.WithContext(ctx).Save(group).Error; err != nil {
-		return err
-	}
-
-	return nil
+		return nil
+	})
 }
 
 func (r *repositoryImpl) Create(group *model.Group) error {
@@ -85,12 +85,17 @@ func (r *repositoryImpl) Join(userId uuid.UUID, group *model.Group) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	var user model.User
+	newMemberGroup, err := r.FindOne(userId)
+	if err != nil {
+		return err
+	}
+
+	var user model.User = *newMemberGroup.Members[0]
 	if err := r.Db.WithContext(ctx).
 		Model(&model.Group{}).
 		Where("id = ?", group.ID).
 		Association("Members").
-		Append(r.Db.WithContext(ctx).First(&user, "id = ?", userId)).Error; err != nil {
+		Append(user).Error; err != nil {
 	}
 
 	return nil
@@ -101,11 +106,11 @@ func (r *repositoryImpl) DeleteMember(userId uuid.UUID, group *model.Group) erro
 	defer cancel()
 
 	if err := r.Db.WithContext(ctx).
+		Preload("Members").
 		Model(&model.Group{}).
 		Where("id = ?", group.ID).
 		Association("Members").
-		Delete(&model.User{uuid: userId}).Error; err != nil {
-		return err
+		Delete(&model.User{UUID: userId}).Error; err != nil {
 	}
 
 	return nil

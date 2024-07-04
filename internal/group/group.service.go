@@ -168,16 +168,7 @@ func (s *serviceImpl) Update(ctx context.Context, in *proto.UpdateGroupRequest) 
 		return nil, err
 	}
 
-	modelGroup := &proto.Group{
-		// Convert groupData to model.Group type
-		Id:          in.Group.Id,
-		LeaderID:    in.Group.LeaderID,
-		Token:       in.Group.Token,
-		Members:     nil,
-		IsConfirmed: in.Group.IsConfirmed,
-	}
-
-	if err := s.repo.Update(group, modelGroup); err != nil {
+	if err := s.repo.Update(userUUID, group); err != nil {
 		s.log.Error("Failed to update group", zap.String("leader_id", in.LeaderId), zap.Error(err))
 		return nil, err
 	}
@@ -226,8 +217,16 @@ func (s *serviceImpl) Join(ctx context.Context, in *proto.JoinGroupRequest) (*pr
 		}
 	}
 
-	if err := s.repo.Join(group, userUUID); err != nil {
-		s.log.Error("Failed to join group", zap.String("user_id", in.UserId), zap.Error(err))
+	chkUser, err := s.repo.FindOne(userUUID)
+	if err != nil {
+		s.log.Error("Failed to find user", zap.String("user_id", in.UserId), zap.Error(err))
+		return nil, err
+	} else if len(chkUser.Members) > 1 {
+		return nil, fmt.Errorf("user %s is already a member of a group", in.UserId)
+	}
+
+	if err := s.repo.Join(userUUID, group); err != nil {
+		s.log.Error("Failed to join group", zap.String("user_id", userUUID.String()), zap.Error(err))
 		return nil, err
 	}
 
@@ -236,12 +235,22 @@ func (s *serviceImpl) Join(ctx context.Context, in *proto.JoinGroupRequest) (*pr
 		s.log.Warn("Failed to set group in cache", zap.String("user_id", in.UserId), zap.Error(err))
 	}
 
+	userInfo := make([]*proto.UserInfo, 0, len(group.Members))
+	for _, m := range group.Members {
+		userInfo = append(userInfo, &proto.UserInfo{
+			Id:        m.ID.String(),
+			Firstname: m.Firstname,
+			Lastname:  m.Lastname,
+			ImageUrl:  m.PhotoUrl,
+		})
+	}
+
 	res := proto.JoinGroupResponse{
 		Group: &proto.Group{
 			Id:          group.ID.String(),
 			LeaderID:    group.LeaderID,
 			Token:       group.Token,
-			Members:     nil,
+			Members:     userInfo,
 			IsConfirmed: group.IsConfirmed,
 		},
 	}
@@ -275,7 +284,7 @@ func (s *serviceImpl) DeleteMember(ctx context.Context, in *proto.DeleteMemberGr
 		}
 	}
 
-	if err := s.repo.DeleteMember(group, userUUID); err != nil {
+	if err := s.repo.DeleteMember(userUUID, group); err != nil {
 		s.log.Error("Failed to delete member", zap.String("user_id", in.UserId), zap.Error(err))
 		return nil, err
 	}
