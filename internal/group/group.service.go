@@ -268,3 +268,67 @@ func (s *serviceImpl) DeleteMember(ctx context.Context, in *proto.DeleteMemberGr
 		Group: &groupRPC,
 	}, nil
 }
+
+func (s *serviceImpl) Leave(ctx context.Context, in *proto.LeaveGroupRequest) (*proto.LeaveGroupResponse, error) {
+	userUUID, err := uuid.Parse(in.UserId)
+	if err != nil {
+		return nil, fmt.Errorf("invalid UUID format: %v", err)
+	}
+
+	group, err := s.repo.FindOne(userUUID)
+	if err != nil {
+		return nil, err
+	}
+
+	if in.UserId == group.LeaderID {
+		return nil, errors.New("requested user_id is leader of this group so you cannot leave")
+	}
+
+	err = s.repo.WithTransaction(func(tx *gorm.DB) error {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+
+		createdGroup, err := s.repo.CreateNewGroupWithTX(ctx, tx, userUUID.String())
+		if err != nil {
+			return err
+		}
+
+		if err := s.repo.DeleteMemberFromGroupWithTX(ctx, tx, userUUID, createdGroup.ID); err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	group, err = s.repo.FindOne(userUUID)
+	if err != nil {
+		return nil, err
+	}
+
+	membersRPC := make([]*proto.UserInfo, len(group.Members))
+	for i, m := range group.Members {
+		dto := proto.UserInfo{
+			Id:        m.ID.String(),
+			Firstname: m.Firstname,
+			Lastname:  m.Lastname,
+			ImageUrl:  m.PhotoUrl,
+		}
+		membersRPC[i] = &dto
+	}
+
+	groupRPC := proto.Group{
+		Id:          group.ID.String(),
+		LeaderID:    group.LeaderID,
+		Token:       group.Token,
+		IsConfirmed: group.IsConfirmed,
+		Members:     membersRPC,
+	}
+
+	return &proto.LeaveGroupResponse{
+		Group: &groupRPC,
+	}, nil
+}
