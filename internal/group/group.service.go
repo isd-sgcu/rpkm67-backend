@@ -2,13 +2,16 @@ package group
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/isd-sgcu/rpkm67-backend/internal/cache"
 	proto "github.com/isd-sgcu/rpkm67-go-proto/rpkm67/backend/group/v1"
 	"github.com/isd-sgcu/rpkm67-model/model"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
 
 type Service interface {
@@ -184,4 +187,84 @@ func (s *serviceImpl) Update(ctx context.Context, in *proto.UpdateGroupRequest) 
 		zap.Bool("is_confirmed", group.IsConfirmed))
 
 	return &res, nil
+}
+
+func (s *serviceImpl) DeleteMember(ctx context.Context, in *proto.DeleteMemberGroupRequest) (*proto.DeleteMemberGroupResponse, error) {
+	leaderUUID, err := uuid.Parse(in.LeaderId)
+	if err != nil {
+		return nil, fmt.Errorf("invalid UUID format: %v", err)
+	}
+
+	userUUID, err := uuid.Parse(in.UserId)
+	if err != nil {
+		return nil, fmt.Errorf("invalid UUID format: %v", err)
+	}
+
+	group, err := s.repo.FindOne(leaderUUID)
+	if err != nil {
+		return nil, err
+	}
+
+	if in.LeaderId != group.LeaderID {
+		return nil, errors.New("requested leader_id is not leader of this group")
+	}
+
+	var found bool = false
+	for _, member := range group.Members {
+		if member.ID.String() == in.UserId {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return nil, errors.New("this user_id is not in the group")
+	}
+
+	err = s.repo.WithTransaction(func(tx *gorm.DB) error {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+
+		createdGroup, err := s.repo.CreateNewGroupWithTX(ctx, tx, userUUID.String())
+		if err != nil {
+			return err
+		}
+
+		if err := s.repo.DeleteMemberFromGroupWithTX(ctx, tx, userUUID, createdGroup.ID); err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	group, err = s.repo.FindOne(leaderUUID)
+	if err != nil {
+		return nil, err
+	}
+
+	membersRPC := make([]*proto.UserInfo, len(group.Members))
+	for i, m := range group.Members {
+		dto := proto.UserInfo{
+			Id:        m.ID.String(),
+			Firstname: m.Firstname,
+			Lastname:  m.Lastname,
+			ImageUrl:  m.PhotoUrl,
+		}
+		membersRPC[i] = &dto
+	}
+
+	groupRPC := proto.Group{
+		Id:          group.ID.String(),
+		LeaderID:    group.LeaderID,
+		Token:       group.Token,
+		IsConfirmed: group.IsConfirmed,
+		Members:     membersRPC,
+	}
+
+	return &proto.DeleteMemberGroupResponse{
+		Group: &groupRPC,
+	}, nil
 }

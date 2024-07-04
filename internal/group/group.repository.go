@@ -11,9 +11,12 @@ import (
 )
 
 type Repository interface {
+	WithTransaction(txFunc func(*gorm.DB) error) error
 	FindOne(userId uuid.UUID) (*model.Group, error)
 	FindByToken(token string) (*model.Group, error)
 	Update(leaderUUID uuid.UUID, group *model.Group) error
+	DeleteMemberFromGroupWithTX(ctx context.Context, tx *gorm.DB, userUUID, groupUUID uuid.UUID) error
+	CreateNewGroupWithTX(ctx context.Context, tx *gorm.DB, leaderId string) (*model.Group, error)
 }
 
 type repositoryImpl struct {
@@ -24,6 +27,26 @@ func NewRepository(db *gorm.DB) Repository {
 	return &repositoryImpl{
 		Db: db,
 	}
+}
+
+func (r *repositoryImpl) WithTransaction(txFunc func(*gorm.DB) error) error {
+	tx := r.Db.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	if err := txFunc(tx); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit().Error
 }
 
 func (r *repositoryImpl) FindOne(userId uuid.UUID) (*model.Group, error) {
@@ -69,4 +92,31 @@ func (r *repositoryImpl) Update(leaderUUID uuid.UUID, group *model.Group) error 
 	}
 
 	return nil
+}
+
+func (r *repositoryImpl) DeleteMemberFromGroupWithTX(ctx context.Context, tx *gorm.DB, userUUID, groupUUID uuid.UUID) error {
+	updateMap := map[string]interface{}{
+		"group_id": groupUUID,
+	}
+	result := r.Db.WithContext(ctx).Model(&model.User{}).Where("id = ?", userUUID).Updates(updateMap)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return errors.New("no user found with the given ID")
+	}
+
+	return nil
+}
+
+func (r *repositoryImpl) CreateNewGroupWithTX(ctx context.Context, tx *gorm.DB, leaderId string) (*model.Group, error) {
+	group := model.Group{
+		LeaderID: leaderId,
+	}
+
+	if err := r.Db.WithContext(ctx).Create(&group).Error; err != nil {
+		return nil, err
+	}
+
+	return &group, nil
 }
