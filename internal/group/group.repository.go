@@ -61,10 +61,9 @@ func (r *repositoryImpl) FindByToken(token string) (*model.Group, error) {
 
 func (r *repositoryImpl) Update(LeaderID uuid.UUID, group *model.Group) error {
 	return r.Db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where(`LeaderID = ?`, LeaderID).Updates(group).Error; err != nil {
+		if err := tx.Where(`leader_id = ?`, LeaderID).Update(`is_confirmed`, group.IsConfirmed).Error; err != nil {
 			return err
 		}
-
 		return nil
 	})
 }
