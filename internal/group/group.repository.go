@@ -18,6 +18,7 @@ type Repository interface {
 	DeleteMemberFromGroupWithTX(ctx context.Context, tx *gorm.DB, userUUID, groupUUID uuid.UUID) error
 	CreateNewGroupWithTX(ctx context.Context, tx *gorm.DB, leaderId string) (*model.Group, error)
 	JoinGroupWithTX(ctx context.Context, tx *gorm.DB, userUUID, groupUUID uuid.UUID) error
+	DeleteGroup(ctx context.Context, tx *gorm.DB, groupUUID uuid.UUID) error
 }
 
 type repositoryImpl struct {
@@ -133,6 +134,18 @@ func (r *repositoryImpl) JoinGroupWithTX(ctx context.Context, tx *gorm.DB, userU
 	}
 	if result.RowsAffected == 0 {
 		return errors.New("no user found with the given ID")
+	}
+
+	return nil
+}
+
+func (r *repositoryImpl) DeleteGroup(ctx context.Context, tx *gorm.DB, groupUUID uuid.UUID) error {
+	result := r.Db.Delete(&model.Group{}, "id = ?", groupUUID)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return errors.New("not found group match with given id")
 	}
 
 	return nil

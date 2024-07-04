@@ -344,6 +344,10 @@ func (s *serviceImpl) Join(ctx context.Context, in *proto.JoinGroupRequest) (*pr
 		return nil, err
 	}
 
+	if in.UserId == existedGroup.LeaderID && len(existedGroup.Members) > 1 {
+		return nil, errors.New("requested user_id is leader of this group so you cannot leave")
+	}
+
 	err = s.repo.WithTransaction(func(tx *gorm.DB) error {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -358,8 +362,11 @@ func (s *serviceImpl) Join(ctx context.Context, in *proto.JoinGroupRequest) (*pr
 			return err
 		}
 
-		if err := s.repo.DeleteMemberFromGroupWithTX(ctx, tx, userUUID, existedGroup.ID); err != nil {
-			return err
+		if in.UserId == existedGroup.LeaderID && len(existedGroup.Members) == 1 {
+			err := s.repo.DeleteGroup(ctx, tx, existedGroup.ID)
+			if err != nil {
+				return err
+			}
 		}
 
 		return nil
