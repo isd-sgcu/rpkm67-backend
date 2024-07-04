@@ -33,8 +33,7 @@ func (r *repositoryImpl) FindOne(userId uuid.UUID) (*model.Group, error) {
 	var group model.Group
 	if err := r.Db.WithContext(ctx).
 		Preload("Members").
-		Joins("JOIN users ON users.group_id = groups.id").
-		Where("users.id = ?", userId).
+		Where("id = (SELECT group_id FROM users WHERE id = ?)", userId).
 		First(&group).Error; err != nil {
 		return nil, err
 	}
