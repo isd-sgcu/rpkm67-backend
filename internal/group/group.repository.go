@@ -12,7 +12,7 @@ import (
 type Repository interface {
 	FindOne(userId uuid.UUID) (*model.Group, error)
 	FindByToken(token string) (*model.Group, error)
-	Update(group *model.Group) error
+	Update(group *model.Group, updatedGroupData *model.Group) error
 	Create(group *model.Group) error
 	Join(userId uuid.UUID, group *model.Group) error
 	DeleteMember(userId uuid.UUID, group *model.Group) error
@@ -59,7 +59,7 @@ func (r *repositoryImpl) FindByToken(token string) (*model.Group, error) {
 	return &group, nil
 }
 
-func (r *repositoryImpl) Update(group *model.Group) error {
+func (r *repositoryImpl) Update(group *model.Group, updatedGroupData *model.Group) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
@@ -85,12 +85,12 @@ func (r *repositoryImpl) Join(userId uuid.UUID, group *model.Group) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
+	var user model.User
 	if err := r.Db.WithContext(ctx).
 		Model(&model.Group{}).
 		Where("id = ?", group.ID).
 		Association("Members").
-		Append(&model.User{uuid: userId}).Error; err != nil {
-		return err
+		Append(r.Db.WithContext(ctx).First(&user, "id = ?", userId)).Error; err != nil {
 	}
 
 	return nil

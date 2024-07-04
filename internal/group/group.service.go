@@ -31,14 +31,14 @@ func NewService(repo Repository, cache cache.Repository, log *zap.Logger) Servic
 
 func (s *serviceImpl) FindOne(ctx context.Context, in *proto.FindOneGroupRequest) (*proto.FindOneGroupResponse, error) {
 	cacheKey := fmt.Sprintf("group:%s", in.UserId)
-	var cachedGroup proto.Group
+	// var cachedGroup proto.Group
 
-	// try to retreive from cache
-	err := s.cache.GetValue(cacheKey, &cachedGroup)
-	if err == nil {
-		s.log.Info("Group found in cache", zap.String("user_id", in.UserId))
-		return &proto.FindOneGroupResponse{Group: &cachedGroup}, nil
-	}
+	// // try to retreive from cache
+	// err := s.cache.GetValue(cacheKey, &cachedGroup)
+	// if err == nil {
+	// 	s.log.Info("Group found in cache", zap.String("user_id", in.UserId))
+	// 	return &proto.FindOneGroupResponse{Group: &cachedGroup}, nil
+	// }
 
 	userUUID, err := uuid.Parse(in.UserId)
 	if err != nil {
@@ -91,14 +91,15 @@ func (s *serviceImpl) FindOne(ctx context.Context, in *proto.FindOneGroupRequest
 
 func (s *serviceImpl) FindByToken(ctx context.Context, in *proto.FindByTokenGroupRequest) (*proto.FindByTokenGroupResponse, error) {
 	cacheKey := fmt.Sprintf("token:%s", in.Token)
-	var cachedGroup proto.Group
 
-	// try to retreive from cache
-	err := s.cache.GetValue(cacheKey, &cachedGroup)
-	if err == nil {
-		s.log.Info("Group found in cache", zap.String("token", in.Token))
-		return &proto.FindByTokenGroupResponse{Leader: &cachedGroup}, nil
-	}
+	// var cachedGroup proto.Group
+
+	// // try to retreive from cache
+	// err := s.cache.GetValue(cacheKey, &cachedGroup)
+	// if err == nil {
+	// 	s.log.Info("Group found in cache", zap.String("token", in.Token))
+	// 	return &proto.FindByTokenGroupResponse{Leader: &cachedGroup}, nil
+	// }
 
 	// if not found cache, find group in database
 	group, err := s.repo.FindByToken(in.Token)
@@ -108,6 +109,7 @@ func (s *serviceImpl) FindByToken(ctx context.Context, in *proto.FindByTokenGrou
 	}
 
 	userInfo := make([]*proto.UserInfo, 0, len(group.Members))
+	var LeaderInfo proto.UserInfo
 	for _, m := range group.Members {
 		user := proto.UserInfo{
 			Id:        m.ID.String(),
@@ -116,6 +118,14 @@ func (s *serviceImpl) FindByToken(ctx context.Context, in *proto.FindByTokenGrou
 			ImageUrl:  m.PhotoUrl,
 		}
 		userInfo = append(userInfo, &user)
+		if user.Id == group.LeaderID {
+			LeaderInfo = proto.UserInfo{
+				Id:        m.ID.String(),
+				Firstname: m.Firstname,
+				Lastname:  m.Lastname,
+				ImageUrl:  m.PhotoUrl,
+			}
+		}
 	}
 
 	groupRPC := proto.Group{
@@ -132,7 +142,9 @@ func (s *serviceImpl) FindByToken(ctx context.Context, in *proto.FindByTokenGrou
 	}
 
 	res := proto.FindByTokenGroupResponse{
-		Group: &groupRPC,
+		Id:     group.ID.String(),
+		Leader: &LeaderInfo,
+		Token:  group.Token,
 	}
 
 	s.log.Info("FindByToken group service completed",
@@ -156,7 +168,16 @@ func (s *serviceImpl) Update(ctx context.Context, in *proto.UpdateGroupRequest) 
 		return nil, err
 	}
 
-	if err := s.repo.Update(group); err != nil {
+	modelGroup := &proto.Group{
+		// Convert groupData to model.Group type
+		Id:          in.Group.Id,
+		LeaderID:    in.Group.LeaderID,
+		Token:       in.Group.Token,
+		Members:     nil,
+		IsConfirmed: in.Group.IsConfirmed,
+	}
+
+	if err := s.repo.Update(group, modelGroup); err != nil {
 		s.log.Error("Failed to update group", zap.String("leader_id", in.LeaderId), zap.Error(err))
 		return nil, err
 	}
@@ -180,42 +201,6 @@ func (s *serviceImpl) Update(ctx context.Context, in *proto.UpdateGroupRequest) 
 		zap.String("group_id", group.ID.String()),
 		zap.String("user_id", in.LeaderId),
 		zap.Bool("is_confirmed", group.IsConfirmed))
-
-	return &res, nil
-}
-
-func (s *serviceImpl) Create(ctx context.Context, in *proto.CreateGroupRequest) (*proto.CreateGroupResponse, error) {
-	group := &Group{
-		ID:       uuid.New(),
-		LeaderID: in.LeaderId,
-		Token:    in.Token,
-	}
-
-	group, err := s.repo.FindByToken()
-
-	if err := s.repo.Create(group); err != nil {
-		s.log.Error("Failed to create group", zap.String("leader_id", in.LeaderId), zap.Error(err))
-		return nil, err
-	}
-
-	cacheKey := fmt.Sprintf("group:%s", in.LeaderId)
-	if err := s.cache.SetValue(cacheKey, group, 3600); err != nil { // cache นาน 1 ชั่วโมง
-		s.log.Warn("Failed to set group in cache", zap.String("leader_id", in.LeaderId), zap.Error(err))
-	}
-
-	res := proto.CreateGroupResponse{
-		Group: &proto.Group{
-			Id:          group.ID.String(),
-			LeaderID:    group.LeaderID,
-			Token:       group.Token,
-			Members:     nil,
-			IsConfirmed: group.IsConfirmed,
-		},
-	}
-
-	s.log.Info("CreateGroup group service completed",
-		zap.String("group_id", group.ID.String()),
-		zap.String("leader_id", in.LeaderId))
 
 	return &res, nil
 }
@@ -410,6 +395,42 @@ func (s *serviceImpl) SelectBaan(ctx context.Context, in *proto.SelectBaanReques
 	s.log.Info("Selection created",
 		zap.String("group_id", in.GroupId),
 		zap.String("baan_id", in.BaanId))
+
+	return &res, nil
+}
+
+func (s *serviceImpl) Create(ctx context.Context, in *proto.LeaveGroupRequest) (*proto.LeaveGroupResponse, error) {
+	group := &Group{
+		ID:       uuid.New(),
+		LeaderID: in.LeaderId,
+		Token:    in.Token,
+	}
+
+	group, err := s.repo.FindByToken(in.Token)
+
+	if err := s.repo.Create(group); err != nil {
+		s.log.Error("Failed to create group", zap.String("leader_id", in.LeaderId), zap.Error(err))
+		return nil, err
+	}
+
+	cacheKey := fmt.Sprintf("group:%s", in.LeaderId)
+	if err := s.cache.SetValue(cacheKey, group, 3600); err != nil { // cache นาน 1 ชั่วโมง
+		s.log.Warn("Failed to set group in cache", zap.String("leader_id", in.LeaderId), zap.Error(err))
+	}
+
+	res := proto.CreateGroupResponse{
+		Group: &proto.Group{
+			Id:          group.ID.String(),
+			LeaderID:    group.LeaderID,
+			Token:       group.Token,
+			Members:     nil,
+			IsConfirmed: group.IsConfirmed,
+		},
+	}
+
+	s.log.Info("CreateGroup group service completed",
+		zap.String("group_id", group.ID.String()),
+		zap.String("leader_id", in.LeaderId))
 
 	return &res, nil
 }
