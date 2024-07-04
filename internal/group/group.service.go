@@ -268,7 +268,13 @@ func (s *serviceImpl) DeleteMember(ctx context.Context, in *proto.DeleteMemberGr
 		return nil, fmt.Errorf("invalid UUID format: %v", err)
 	}
 
-	group, err := s.repo.FindOne(userUUID)
+	leaderUUID, err := uuid.Parse(in.LeaderId)
+	if err != nil {
+		return nil, fmt.Errorf("invalid UUID format: %v", err)
+
+	}
+
+	group, err := s.repo.FindOne(leaderUUID)
 	if err != nil {
 		s.log.Error("Failed to find group", zap.String("user_id", in.UserId), zap.Error(err))
 		return nil, err
@@ -284,10 +290,10 @@ func (s *serviceImpl) DeleteMember(ctx context.Context, in *proto.DeleteMemberGr
 		}
 	}
 
-	if err := s.repo.DeleteMember(userUUID, group); err != nil {
-		s.log.Error("Failed to delete member", zap.String("user_id", in.UserId), zap.Error(err))
-		return nil, err
-	}
+	// if err := s.repo.DeleteMember(userUUID, group); err != nil {
+	// 	s.log.Error("Failed to delete member", zap.String("user_id", in.UserId), zap.Error(err))
+	// 	return nil, err
+	// }
 
 	cacheKey := fmt.Sprintf("group:%s", in.UserId)
 	if err := s.cache.SetValue(cacheKey, group, 3600); err != nil { // cache นาน 1 ชั่วโมง
@@ -352,94 +358,6 @@ func (s *serviceImpl) Leave(ctx context.Context, in *proto.LeaveGroupRequest) (*
 	s.log.Info("LeaveGroup group service completed",
 		zap.String("group_id", group.ID.String()),
 		zap.String("user_id", in.UserId))
-
-	return &res, nil
-}
-
-func (s *serviceImpl) SelectBaan(ctx context.Context, in *proto.SelectBaanRequest) (*proto.SelectBaanResponse, error) {
-	userUUID, err := uuid.Parse(in.UserId)
-	if err != nil {
-		return nil, fmt.Errorf("invalid UUID format: %v", err)
-	}
-
-	group, err := s.repo.FindOne(userUUID)
-	if err != nil {
-		s.log.Error("Failed to find group", zap.String("user_id", in.UserId), zap.Error(err))
-		return nil, err
-	}
-
-	for _, member := range group.Members {
-		if member.ID.String() != in.UserId {
-			return nil, fmt.Errorf("user is not in group", in.UserId)
-		}
-	}
-
-	selection := &Selection{
-		GroupID: group.ID,
-		Baan:    in.BaanId,
-		Order:   int(in.Order),
-	}
-
-	err = s.repo.Create(selection)
-	if err != nil {
-		s.log.Error("Failed to create selection", zap.Error(err))
-		return nil, err
-	}
-
-	cacheKey := fmt.Sprintf("group:%s", in.GroupId)
-	err = s.cache.SetValue(cacheKey, selection, 3600)
-	if err != nil {
-		s.log.Error("Failed to cache selection", zap.Error(err))
-	}
-
-	res := proto.SelectBaanGroupResponse{
-		Selection: &proto.Selection{
-			Id:      "",
-			GroupId: in.GroupId,
-			BaanId:  in.BaanId,
-			Order:   in.Order,
-		},
-	}
-
-	s.log.Info("Selection created",
-		zap.String("group_id", in.GroupId),
-		zap.String("baan_id", in.BaanId))
-
-	return &res, nil
-}
-
-func (s *serviceImpl) Create(ctx context.Context, in *proto.LeaveGroupRequest) (*proto.LeaveGroupResponse, error) {
-	group := &Group{
-		ID:       uuid.New(),
-		LeaderID: in.LeaderId,
-		Token:    in.Token,
-	}
-
-	group, err := s.repo.FindByToken(in.Token)
-
-	if err := s.repo.Create(group); err != nil {
-		s.log.Error("Failed to create group", zap.String("leader_id", in.LeaderId), zap.Error(err))
-		return nil, err
-	}
-
-	cacheKey := fmt.Sprintf("group:%s", in.LeaderId)
-	if err := s.cache.SetValue(cacheKey, group, 3600); err != nil { // cache นาน 1 ชั่วโมง
-		s.log.Warn("Failed to set group in cache", zap.String("leader_id", in.LeaderId), zap.Error(err))
-	}
-
-	res := proto.CreateGroupResponse{
-		Group: &proto.Group{
-			Id:          group.ID.String(),
-			LeaderID:    group.LeaderID,
-			Token:       group.Token,
-			Members:     nil,
-			IsConfirmed: group.IsConfirmed,
-		},
-	}
-
-	s.log.Info("CreateGroup group service completed",
-		zap.String("group_id", group.ID.String()),
-		zap.String("leader_id", in.LeaderId))
 
 	return &res, nil
 }
