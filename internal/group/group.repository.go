@@ -2,6 +2,7 @@ package group
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -12,6 +13,7 @@ import (
 type Repository interface {
 	FindOne(userId uuid.UUID) (*model.Group, error)
 	FindByToken(token string) (*model.Group, error)
+	Update(leaderUUID uuid.UUID, group *model.Group) error
 }
 
 type repositoryImpl struct {
@@ -53,4 +55,19 @@ func (r *repositoryImpl) FindByToken(token string) (*model.Group, error) {
 	}
 
 	return &group, nil
+}
+
+func (r *repositoryImpl) Update(leaderUUID uuid.UUID, group *model.Group) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	result := r.Db.WithContext(ctx).Model(&model.Group{}).Where("leader_id = ?", leaderUUID).Update("is_confirmed", group.IsConfirmed)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return errors.New("no promotion found with the given ID")
+	}
+
+	return nil
 }

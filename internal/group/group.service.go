@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/isd-sgcu/rpkm67-backend/internal/cache"
 	proto "github.com/isd-sgcu/rpkm67-go-proto/rpkm67/backend/group/v1"
+	"github.com/isd-sgcu/rpkm67-model/model"
 	"go.uber.org/zap"
 )
 
@@ -140,5 +141,47 @@ func (s *serviceImpl) FindByToken(ctx context.Context, in *proto.FindByTokenGrou
 }
 
 func (s *serviceImpl) Update(ctx context.Context, in *proto.UpdateGroupRequest) (*proto.UpdateGroupResponse, error) {
-	return nil, nil
+	leaderUUID, err := uuid.Parse(in.LeaderId)
+	if err != nil {
+		return nil, fmt.Errorf("invalid UUID format: %v", err)
+	}
+
+	group, err := s.repo.FindOne(leaderUUID)
+	if err != nil {
+		s.log.Error("Failed to find group", zap.String("leader_id", in.LeaderId), zap.Error(err))
+		return nil, err
+	}
+
+	if err := s.repo.Update(leaderUUID, &model.Group{IsConfirmed: in.Group.IsConfirmed}); err != nil {
+		s.log.Error("Failed to update group", zap.String("leader_id", in.LeaderId), zap.Error(err))
+		return nil, err
+	}
+
+	updatedGroup, err := s.repo.FindOne(leaderUUID)
+	if err != nil {
+		s.log.Error("Failed to find group", zap.String("leader_id", in.LeaderId), zap.Error(err))
+		return nil, err
+	}
+
+	cacheKey := fmt.Sprintf("group:%s", in.LeaderId)
+	if err := s.cache.SetValue(cacheKey, updatedGroup, 3600); err != nil { // cache นาน 1 ชั่วโมง
+		s.log.Warn("Failed to set group in cache", zap.String("leader_id", in.LeaderId), zap.Error(err))
+	}
+
+	res := proto.UpdateGroupResponse{
+		Group: &proto.Group{
+			Id:          group.ID.String(),
+			LeaderID:    group.LeaderID,
+			Token:       group.Token,
+			Members:     nil,
+			IsConfirmed: in.Group.IsConfirmed,
+		},
+	}
+
+	s.log.Info("UpdateGroup group service completed",
+		zap.String("group_id", group.ID.String()),
+		zap.String("leader_id", in.LeaderId),
+		zap.Bool("is_confirmed", group.IsConfirmed))
+
+	return &res, nil
 }
