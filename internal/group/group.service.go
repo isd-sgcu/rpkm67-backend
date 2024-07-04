@@ -332,3 +332,68 @@ func (s *serviceImpl) Leave(ctx context.Context, in *proto.LeaveGroupRequest) (*
 		Group: &groupRPC,
 	}, nil
 }
+
+func (s *serviceImpl) Join(ctx context.Context, in *proto.JoinGroupRequest) (*proto.JoinGroupResponse, error) {
+	userUUID, err := uuid.Parse(in.UserId)
+	if err != nil {
+		return nil, fmt.Errorf("invalid UUID format: %v", err)
+	}
+
+	existedGroup, err := s.repo.FindOne(userUUID)
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.repo.WithTransaction(func(tx *gorm.DB) error {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		group, tokenErr := s.repo.FindByToken(in.Token)
+		if tokenErr != nil {
+			return tokenErr
+		}
+
+		err := s.repo.JoinGroupWithTX(ctx, tx, userUUID, group.ID)
+		if err != nil {
+			return err
+		}
+
+		if err := s.repo.DeleteMemberFromGroupWithTX(ctx, tx, userUUID, existedGroup.ID); err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	group, err := s.repo.FindOne(userUUID)
+	if err != nil {
+		return nil, err
+	}
+
+	membersRPC := make([]*proto.UserInfo, len(group.Members))
+	for i, m := range group.Members {
+		dto := proto.UserInfo{
+			Id:        m.ID.String(),
+			Firstname: m.Firstname,
+			Lastname:  m.Lastname,
+			ImageUrl:  m.PhotoUrl,
+		}
+		membersRPC[i] = &dto
+	}
+
+	groupRPC := proto.Group{
+		Id:          group.ID.String(),
+		LeaderID:    group.LeaderID,
+		Token:       group.Token,
+		IsConfirmed: group.IsConfirmed,
+		Members:     membersRPC,
+	}
+
+	return &proto.JoinGroupResponse{
+		Group: &groupRPC,
+	}, nil
+}

@@ -17,6 +17,7 @@ type Repository interface {
 	Update(leaderUUID uuid.UUID, group *model.Group) error
 	DeleteMemberFromGroupWithTX(ctx context.Context, tx *gorm.DB, userUUID, groupUUID uuid.UUID) error
 	CreateNewGroupWithTX(ctx context.Context, tx *gorm.DB, leaderId string) (*model.Group, error)
+	JoinGroupWithTX(ctx context.Context, tx *gorm.DB, userUUID, groupUUID uuid.UUID) error
 }
 
 type repositoryImpl struct {
@@ -119,4 +120,20 @@ func (r *repositoryImpl) CreateNewGroupWithTX(ctx context.Context, tx *gorm.DB, 
 	}
 
 	return &group, nil
+}
+
+func (r *repositoryImpl) JoinGroupWithTX(ctx context.Context, tx *gorm.DB, userUUID, groupUUID uuid.UUID) error {
+	updateMap := map[string]interface{}{
+		"group_id": groupUUID,
+	}
+
+	result := r.Db.WithContext(ctx).Model(&model.User{}).Where("id = ?", userUUID).Updates(updateMap)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return errors.New("no user found with the given ID")
+	}
+
+	return nil
 }
