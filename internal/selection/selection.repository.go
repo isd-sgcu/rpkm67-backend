@@ -25,8 +25,8 @@ func NewRepository(db *gorm.DB) Repository {
 	}
 }
 
-func (r *repositoryImpl) Create(user *model.Selection) error {
-	return r.Db.Create(user).Error
+func (r *repositoryImpl) Create(selection *model.Selection) error {
+	return r.Db.Create(selection).Error
 }
 
 func (r *repositoryImpl) FindByGroupId(groupId string, selections *[]model.Selection) error {
