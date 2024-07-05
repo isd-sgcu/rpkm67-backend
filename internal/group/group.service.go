@@ -47,8 +47,8 @@ func (s *serviceImpl) FindOne(ctx context.Context, in *proto.FindOneGroupRequest
 	// If not found in cache, fetch from database
 	userUUID, err := uuid.Parse(in.UserId)
 	if err != nil {
-		s.log.Error("Invalid UUID format", zap.String("user_id", in.UserId), zap.Error(err))
-		return nil, fmt.Errorf("invalid UUID format: %w", err)
+		s.log.Error("Parse: Invalid UUID format", zap.String("user_id", in.UserId), zap.Error(err))
+		return nil, fmt.Errorf("parse invalid UUID format: %w", err)
 	}
 
 	group, err := s.repo.FindOne(userUUID)
@@ -125,8 +125,8 @@ func (s *serviceImpl) FindByToken(ctx context.Context, in *proto.FindByTokenGrou
 func (s *serviceImpl) Update(ctx context.Context, in *proto.UpdateGroupRequest) (*proto.UpdateGroupResponse, error) {
 	leaderUUID, err := uuid.Parse(in.LeaderId)
 	if err != nil {
-		s.log.Error("Invalid UUID format", zap.String("leader_id", in.LeaderId), zap.Error(err))
-		return nil, fmt.Errorf("invalid UUID format: %w", err)
+		s.log.Error("Parse: Invalid UUID format", zap.String("leader_id", in.LeaderId), zap.Error(err))
+		return nil, fmt.Errorf("parse invalid UUID format: %w", err)
 	}
 
 	_, err = s.repo.FindOne(leaderUUID)
@@ -162,14 +162,14 @@ func (s *serviceImpl) Update(ctx context.Context, in *proto.UpdateGroupRequest) 
 func (s *serviceImpl) DeleteMember(ctx context.Context, in *proto.DeleteMemberGroupRequest) (*proto.DeleteMemberGroupResponse, error) {
 	leaderUUID, err := uuid.Parse(in.LeaderId)
 	if err != nil {
-		s.log.Error("Invalid leader UUID format", zap.String("leader_id", in.LeaderId), zap.Error(err))
-		return nil, fmt.Errorf("invalid leader UUID format: %w", err)
+		s.log.Error("Parse: Invalid leader UUID format", zap.String("leader_id", in.LeaderId), zap.Error(err))
+		return nil, fmt.Errorf("parse invalid leader UUID format: %w", err)
 	}
 
 	userUUID, err := uuid.Parse(in.UserId)
 	if err != nil {
-		s.log.Error("Invalid user UUID format", zap.String("user_id", in.UserId), zap.Error(err))
-		return nil, fmt.Errorf("invalid user UUID format: %w", err)
+		s.log.Error("Parse: Invalid user UUID format", zap.String("user_id", in.UserId), zap.Error(err))
+		return nil, fmt.Errorf("parse invalid user UUID format: %w", err)
 	}
 
 	group, err := s.repo.FindOne(leaderUUID)
@@ -249,7 +249,7 @@ func (s *serviceImpl) DeleteMember(ctx context.Context, in *proto.DeleteMemberGr
 func (s *serviceImpl) Leave(ctx context.Context, in *proto.LeaveGroupRequest) (*proto.LeaveGroupResponse, error) {
 	userUUID, err := uuid.Parse(in.UserId)
 	if err != nil {
-		s.log.Error("Invalid UUID format", zap.String("user_id", in.UserId), zap.Error(err))
+		s.log.Error("Parse: Invalid UUID format", zap.String("user_id", in.UserId), zap.Error(err))
 		return nil, fmt.Errorf("invalid UUID format: %w", err)
 	}
 
@@ -290,8 +290,8 @@ func (s *serviceImpl) Leave(ctx context.Context, in *proto.LeaveGroupRequest) (*
 	leaderExistedGroup := group.LeaderID
 	leaderExistedGroupUUID, err := uuid.Parse(leaderExistedGroup)
 	if err != nil {
-		s.log.Error("Invalid UUID format", zap.String("user_id", in.UserId), zap.Error(err))
-		return nil, fmt.Errorf("invalid UUID format: %w", err)
+		s.log.Error("Parse: Invalid UUID format", zap.String("user_id", in.UserId), zap.Error(err))
+		return nil, fmt.Errorf("parse invalid UUID format: %w", err)
 	}
 	existedGroup, err := s.repo.FindOne(leaderExistedGroupUUID)
 	if err != nil {
@@ -321,8 +321,8 @@ func (s *serviceImpl) Leave(ctx context.Context, in *proto.LeaveGroupRequest) (*
 func (s *serviceImpl) Join(ctx context.Context, in *proto.JoinGroupRequest) (*proto.JoinGroupResponse, error) {
 	userUUID, err := uuid.Parse(in.UserId)
 	if err != nil {
-		s.log.Error("Invalid UUID format", zap.String("user_id", in.UserId), zap.Error(err))
-		return nil, fmt.Errorf("invalid UUID format: %w", err)
+		s.log.Error("Parse: Invalid UUID format", zap.String("user_id", in.UserId), zap.Error(err))
+		return nil, fmt.Errorf("parse invalid UUID format: %w", err)
 	}
 
 	existedGroup, err := s.repo.FindOne(userUUID)
