@@ -57,12 +57,6 @@ func (s *serviceImpl) FindOne(_ context.Context, in *proto.FindOneGroupRequest) 
 		s.log.Named("FindOne").Warn("SetValue: ", zap.String("user_id", in.Id), zap.Error(err))
 	}
 
-	s.log.Named("FindOne").Info("completed",
-		zap.String("group_id", group.ID.String()),
-		zap.String("id", in.Id),
-		zap.Int("member_count", len(group.Members)),
-		zap.Bool("from_cache", false))
-
 	return &proto.FindOneGroupResponse{Group: groupRPC}, nil
 }
 
@@ -106,11 +100,6 @@ func (s *serviceImpl) FindByToken(_ context.Context, in *proto.FindByTokenGroupR
 		s.log.Named("FindByToken").Warn("SetValue: ", zap.String("token", in.Token), zap.Error(err))
 	}
 
-	s.log.Named("FindByToken").Info("completed",
-		zap.String("group_id", group.ID.String()),
-		zap.String("token", in.Token),
-		zap.Bool("from_cache", false))
-
 	return &res, nil
 }
 
@@ -145,11 +134,6 @@ func (s *serviceImpl) UpdateConfirm(_ context.Context, in *proto.UpdateConfirmGr
 	s.updateGroupCache(updatedGroup)
 
 	groupRPC := ModelToProto(updatedGroup)
-
-	s.log.Named("Update").Info("completed",
-		zap.String("group_id", updatedGroup.ID.String()),
-		zap.String("leader_id", in.LeaderId),
-		zap.Bool("is_confirmed", updatedGroup.IsConfirmed))
 
 	return &proto.UpdateConfirmGroupResponse{Group: groupRPC}, nil
 }
@@ -217,11 +201,6 @@ func (s *serviceImpl) DeleteMember(_ context.Context, in *proto.DeleteMemberGrou
 
 	groupRPC := ModelToProto(updatedGroup)
 
-	s.log.Named("DeleteMember").Info("completed",
-		zap.String("group_id", updatedGroup.ID.String()),
-		zap.String("leader_id", in.LeaderId),
-		zap.String("deleted_user_id", in.UserId))
-
 	return &proto.DeleteMemberGroupResponse{Group: groupRPC}, nil
 }
 
@@ -280,10 +259,6 @@ func (s *serviceImpl) Leave(_ context.Context, in *proto.LeaveGroupRequest) (*pr
 	s.updateGroupCache(updatedGroup)
 
 	groupRPC := ModelToProto(updatedGroup)
-
-	s.log.Named("Leave").Info("completed",
-		zap.String("group_id", updatedGroup.ID.String()),
-		zap.String("user_id", in.UserId))
 
 	return &proto.LeaveGroupResponse{Group: groupRPC}, nil
 }
@@ -345,10 +320,6 @@ func (s *serviceImpl) Join(_ context.Context, in *proto.JoinGroupRequest) (*prot
 
 	groupRPC := ModelToProto(updatedGroup)
 
-	s.log.Named("Join").Info("completed",
-		zap.String("group_id", updatedGroup.ID.String()),
-		zap.String("user_id", in.UserId))
-
 	return &proto.JoinGroupResponse{Group: groupRPC}, nil
 }
 
@@ -374,9 +345,9 @@ func (s *serviceImpl) checkGroup(group *model.Group) error {
 		s.log.Named("checkGroup").Error("group has no members")
 		return fmt.Errorf("group has no members")
 	}
-	if len(group.Members) > s.conf.MaxGroupSize {
+	if len(group.Members) > s.conf.Capacity {
 		s.log.Named("checkGroup").Error("group has more than max group size")
-		return fmt.Sprintf("group has more than 1 members but is not confirmed")
+		return fmt.Errorf("group has more than %v members (capacity exceeded)", s.conf.Capacity)
 	}
 
 	return nil
