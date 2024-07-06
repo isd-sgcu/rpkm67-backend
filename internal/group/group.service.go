@@ -34,6 +34,30 @@ func NewService(repo Repository, cache cache.Repository, conf *config.GroupConfi
 	}
 }
 
+func (s *serviceImpl) FindByUserId(_ context.Context, in *proto.FindByUserIdGroupRequest) (*proto.FindByUserIdGroupResponse, error) {
+	cacheKey := groupByUserIdKey(in.UserId)
+	var cachedGroup proto.Group
+
+	if err := s.cache.GetValue(cacheKey, &cachedGroup); err == nil {
+		s.log.Named("FindByUserId").Info("GetValue: Group found in cache", zap.String("userId", in.UserId))
+		return &proto.FindByUserIdGroupResponse{Group: &cachedGroup}, nil
+	}
+
+	group := &model.Group{}
+	if err := s.repo.FindByUserId(in.UserId, group); err != nil {
+		s.log.Named("FindByUserId").Error("FindByUserId: ", zap.Error(err))
+		return nil, status.Error(codes.Internal, "failed to find group")
+	}
+
+	groupRPC := ModelToProto(group)
+	if err := s.cache.SetValue(cacheKey, groupRPC, s.conf.CacheTTL); err != nil {
+		s.log.Named("FindByUserId").Error("SetValue: ", zap.Error(err))
+		return nil, status.Error(codes.Internal, "failed to cache group")
+	}
+
+	return &proto.FindByUserIdGroupResponse{Group: groupRPC}, nil
+}
+
 func (s *serviceImpl) FindByToken(_ context.Context, in *proto.FindByTokenGroupRequest) (*proto.FindByTokenGroupResponse, error) {
 	cacheKey := groupByTokenKey(in.Token)
 	var cachedGroup proto.FindByTokenGroupResponse
