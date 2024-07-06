@@ -57,7 +57,7 @@ func (s *serviceImpl) FindOne(ctx context.Context, in *proto.FindOneGroupRequest
 		return nil, status.Error(codes.Internal, "failed to find group")
 	}
 
-	groupRPC := s.convertToGroupRPC(group)
+	groupRPC := ModelToProto(group)
 	if err := s.cache.SetValue(cacheKey, groupRPC, 3600); err != nil {
 		s.log.Named("FindOne").Warn("SetValue: ", zap.String("user_id", in.UserId), zap.Error(err))
 	}
@@ -145,7 +145,7 @@ func (s *serviceImpl) Update(ctx context.Context, in *proto.UpdateGroupRequest) 
 
 	s.updateGroupCache(updatedGroup)
 
-	groupRPC := s.convertToGroupRPC(updatedGroup)
+	groupRPC := ModelToProto(updatedGroup)
 
 	s.log.Named("Update").Info("completed",
 		zap.String("group_id", updatedGroup.ID.String()),
@@ -231,7 +231,7 @@ func (s *serviceImpl) DeleteMember(ctx context.Context, in *proto.DeleteMemberGr
 	s.updateGroupCache(updatedGroup)
 	s.updateGroupCache(newGroup)
 
-	groupRPC := s.convertToGroupRPC(updatedGroup)
+	groupRPC := ModelToProto(updatedGroup)
 
 	s.log.Named("DeleteMember").Info("completed",
 		zap.String("group_id", updatedGroup.ID.String()),
@@ -298,7 +298,7 @@ func (s *serviceImpl) Leave(ctx context.Context, in *proto.LeaveGroupRequest) (*
 	s.updateGroupCache(existedGroup)
 	s.updateGroupCache(updatedGroup)
 
-	groupRPC := s.convertToGroupRPC(updatedGroup)
+	groupRPC := ModelToProto(updatedGroup)
 
 	s.log.Named("Leave").Info("completed",
 		zap.String("group_id", updatedGroup.ID.String()),
@@ -365,7 +365,7 @@ func (s *serviceImpl) Join(ctx context.Context, in *proto.JoinGroupRequest) (*pr
 
 	s.updateGroupCache(updatedGroup)
 
-	groupRPC := s.convertToGroupRPC(updatedGroup)
+	groupRPC := ModelToProto(updatedGroup)
 
 	s.log.Named("Join").Info("completed",
 		zap.String("group_id", updatedGroup.ID.String()),
@@ -375,32 +375,11 @@ func (s *serviceImpl) Join(ctx context.Context, in *proto.JoinGroupRequest) (*pr
 }
 
 func (s *serviceImpl) updateGroupCache(group *model.Group) {
-	groupRPC := s.convertToGroupRPC(group)
+	groupRPC := ModelToProto(group)
 	for _, member := range group.Members {
 		cacheKey := fmt.Sprintf("group:%s", member.ID.String())
 		if err := s.cache.SetValue(cacheKey, groupRPC, 3600); err != nil {
 			s.log.Named("UpdateGroupCache").Warn("SetValue: Failed to update group cache", zap.String("user_id", member.ID.String()), zap.Error(err))
 		}
-	}
-}
-
-func (s *serviceImpl) convertToGroupRPC(group *model.Group) *proto.Group {
-	membersRPC := make([]*proto.UserInfo, len(group.Members))
-	for i, m := range group.Members {
-		dto := proto.UserInfo{
-			Id:        m.ID.String(),
-			Firstname: m.Firstname,
-			Lastname:  m.Lastname,
-			ImageUrl:  m.PhotoUrl,
-		}
-		membersRPC[i] = &dto
-	}
-
-	return &proto.Group{
-		Id:          group.ID.String(),
-		LeaderID:    group.LeaderID.String(),
-		Token:       group.Token,
-		IsConfirmed: group.IsConfirmed,
-		Members:     membersRPC,
 	}
 }
