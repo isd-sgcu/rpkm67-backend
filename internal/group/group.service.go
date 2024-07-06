@@ -34,31 +34,6 @@ func NewService(repo Repository, cache cache.Repository, conf *config.GroupConfi
 	}
 }
 
-// func (s *serviceImpl) FindOne(_ context.Context, in *proto.FindOneGroupRequest) (*proto.FindOneGroupResponse, error) {
-// 	cacheKey := groupKey(in.Id)
-// 	var cachedGroup proto.Group
-
-// 	if err := s.cache.GetValue(cacheKey, &cachedGroup); err == nil {
-// 		s.log.Named("FindOne").Info("GetValue: Group found in cache", zap.String("id", in.Id))
-// 		return &proto.FindOneGroupResponse{Group: &cachedGroup}, nil
-// 	}
-
-// 	// If not found in cache, fetch from database
-// 	group := &model.Group{}
-// 	if err := s.repo.FindOne(in.Id, group); err != nil {
-// 		s.log.Named("FindOne").Error("FindOne: ", zap.Error(err))
-// 		return nil, status.Error(codes.Internal, "failed to find group")
-// 	}
-
-// 	groupRPC := ModelToProto(group)
-// 	if err := s.cache.SetValue(cacheKey, groupRPC, 3600); err != nil {
-// 		s.log.Named("FindOne").Error("SetValue: ", zap.Error(err))
-// 		return nil, status.Error(codes.Internal, "failed to cache group")
-// 	}
-
-// 	return &proto.FindOneGroupResponse{Group: groupRPC}, nil
-// }
-
 func (s *serviceImpl) FindByToken(_ context.Context, in *proto.FindByTokenGroupRequest) (*proto.FindByTokenGroupResponse, error) {
 	cacheKey := groupByTokenKey(in.Token)
 	var cachedGroup proto.FindByTokenGroupResponse
@@ -67,7 +42,6 @@ func (s *serviceImpl) FindByToken(_ context.Context, in *proto.FindByTokenGroupR
 		return &cachedGroup, nil
 	}
 
-	// If not found in cache, find group in database
 	group := &model.Group{}
 	if err := s.repo.FindByToken(in.Token, group); err != nil {
 		s.log.Named("FindByToken").Error("FindByToken: ", zap.Error(err))

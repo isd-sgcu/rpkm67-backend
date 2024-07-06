@@ -10,7 +10,6 @@ import (
 
 type Repository interface {
 	WithTransaction(txFunc func(*gorm.DB) error) error
-	// FindOne(id string, group *model.Group) error
 	FindByUserId(userId string, group *model.Group) error
 	FindByToken(token string, group *model.Group) error
 	Update(id string, group *model.Group) error
@@ -49,10 +48,6 @@ func (r *repositoryImpl) WithTransaction(txFunc func(*gorm.DB) error) error {
 
 	return tx.Commit().Error
 }
-
-// func (r *repositoryImpl) FindOne(id string, group *model.Group) error {
-// 	return r.Db.Preload("Members").Preload("Selections").First(&group, "id = ?", id).Error
-// }
 
 func (r *repositoryImpl) FindByUserId(userId string, group *model.Group) error {
 	return r.Db.Preload("Members").Preload("Selections").
