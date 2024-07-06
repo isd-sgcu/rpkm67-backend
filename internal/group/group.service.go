@@ -70,7 +70,7 @@ func (s *serviceImpl) FindByToken(_ context.Context, in *proto.FindByTokenGroupR
 	// If not found in cache, find group in database
 	group := &model.Group{}
 	if err := s.repo.FindByToken(in.Token, group); err != nil {
-		s.log.Named("FindByToken").Error("FindByToken: ", zap.String("token", in.Token), zap.Error(err))
+		s.log.Named("FindByToken").Error("FindByToken: ", zap.Error(err))
 		return nil, status.Error(codes.Internal, "failed to find group by token")
 	}
 
@@ -137,7 +137,7 @@ func (s *serviceImpl) UpdateConfirm(_ context.Context, in *proto.UpdateConfirmGr
 func (s *serviceImpl) DeleteMember(_ context.Context, in *proto.DeleteMemberGroupRequest) (*proto.DeleteMemberGroupResponse, error) {
 	group := &model.Group{}
 	if err := s.repo.FindByUserId(in.UserId, group); err != nil {
-		s.log.Named("DeleteMember").Error("FindOne: ", zap.String("leader_id", in.LeaderId), zap.Error(err))
+		s.log.Named("DeleteMember").Error("FindOne: ", zap.Error(err))
 		return nil, status.Error(codes.Internal, "failed to find group")
 	}
 
@@ -169,7 +169,7 @@ func (s *serviceImpl) DeleteMember(_ context.Context, in *proto.DeleteMemberGrou
 		}
 
 		if err := s.repo.MoveUserToNewGroupTX(tx, in.UserId, &createGroup.ID); err != nil {
-			s.log.Named("DeleteMember").Error("MoveUserToNewGroupTX: ", zap.String("user_id", in.UserId), zap.Error(err))
+			s.log.Named("DeleteMember").Error("MoveUserToNewGroupTX: ", zap.Error(err))
 			return fmt.Errorf("failed to delete member from group: %w", err)
 		}
 
@@ -224,12 +224,12 @@ func (s *serviceImpl) Leave(_ context.Context, in *proto.LeaveGroupRequest) (*pr
 		}
 
 		if err := s.repo.CreateTX(tx, createGroup); err != nil {
-			s.log.Named("Leave").Error("CreateTX: ", zap.String("user_id", in.UserId), zap.Error(err))
+			s.log.Named("Leave").Error("CreateTX: ", zap.Error(err))
 			return fmt.Errorf("failed to create new group: %w", err)
 		}
 
 		if err := s.repo.MoveUserToNewGroupTX(tx, in.UserId, &createGroup.ID); err != nil {
-			s.log.Named("Leave").Error("MoveUserToNewGroupTX: ", zap.String("user_id", in.UserId), zap.Error(err))
+			s.log.Named("Leave").Error("MoveUserToNewGroupTX: ", zap.Error(err))
 			return fmt.Errorf("failed to delete member from group: %w", err)
 		}
 
