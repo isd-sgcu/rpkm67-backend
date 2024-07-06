@@ -38,7 +38,6 @@ func (s *serviceImpl) FindOne(ctx context.Context, in *proto.FindOneGroupRequest
 	cacheKey := fmt.Sprintf("group:%s", in.UserId)
 	var cachedGroup proto.Group
 
-	// Try to retrieve from cache
 	err := s.cache.GetValue(cacheKey, &cachedGroup)
 	if err == nil {
 		s.log.Named("FindOne").Info("GetValue: Group found in cache", zap.String("user_id", in.UserId))
@@ -58,7 +57,6 @@ func (s *serviceImpl) FindOne(ctx context.Context, in *proto.FindOneGroupRequest
 		return nil, status.Error(codes.Internal, "failed to find group")
 	}
 
-	// Convert to RPC format and update cache
 	groupRPC := s.convertToGroupRPC(group)
 	if err := s.cache.SetValue(cacheKey, groupRPC, 3600); err != nil {
 		s.log.Named("FindOne").Warn("SetValue: ", zap.String("user_id", in.UserId), zap.Error(err))
@@ -77,7 +75,6 @@ func (s *serviceImpl) FindByToken(ctx context.Context, in *proto.FindByTokenGrou
 	cacheKey := fmt.Sprintf("group_token:%s", in.Token)
 	var cachedGroup proto.FindByTokenGroupResponse
 
-	// Try to retrieve from cache
 	err := s.cache.GetValue(cacheKey, &cachedGroup)
 	if err == nil {
 		s.log.Named("FindByToken").Info("GetValue: Group found in cache", zap.String("token", in.Token))
@@ -110,7 +107,6 @@ func (s *serviceImpl) FindByToken(ctx context.Context, in *proto.FindByTokenGrou
 		Leader: &leaderInfo,
 	}
 
-	// Set cache
 	if err := s.cache.SetValue(cacheKey, &res, 3600); err != nil {
 		s.log.Named("FindByToken").Warn("SetValue: ", zap.String("token", in.Token), zap.Error(err))
 	}
@@ -147,7 +143,6 @@ func (s *serviceImpl) Update(ctx context.Context, in *proto.UpdateGroupRequest) 
 		return nil, status.Error(codes.Internal, "failed to find updated group")
 	}
 
-	// Update cache
 	s.updateGroupCache(updatedGroup)
 
 	groupRPC := s.convertToGroupRPC(updatedGroup)
@@ -207,7 +202,7 @@ func (s *serviceImpl) DeleteMember(ctx context.Context, in *proto.DeleteMemberGr
 			return fmt.Errorf("failed to create new group: %w", err)
 		}
 
-		if err := s.repo.DeleteMemberFromGroupWithTX(ctx, tx, userUUID, createdGroup.ID); err != nil {
+		if err := s.repo.MoveUserToNewGroup(ctx, tx, userUUID, createdGroup.ID); err != nil {
 			s.log.Named("DeleteMember").Error("DeleteMemberFromGroupWithTX: ", zap.String("user_id", in.UserId), zap.Error(err))
 			return fmt.Errorf("failed to delete member from group: %w", err)
 		}
@@ -233,7 +228,6 @@ func (s *serviceImpl) DeleteMember(ctx context.Context, in *proto.DeleteMemberGr
 		return nil, status.Error(codes.Internal, "failed to find updated group")
 	}
 
-	// Update cache
 	s.updateGroupCache(updatedGroup)
 	s.updateGroupCache(newGroup)
 
@@ -275,7 +269,7 @@ func (s *serviceImpl) Leave(ctx context.Context, in *proto.LeaveGroupRequest) (*
 			return fmt.Errorf("failed to create new group: %w", err)
 		}
 
-		if err := s.repo.DeleteMemberFromGroupWithTX(ctx, tx, userUUID, createdGroup.ID); err != nil {
+		if err := s.repo.MoveUserToNewGroup(ctx, tx, userUUID, createdGroup.ID); err != nil {
 			s.log.Named("Leave").Error("DeleteMemberFromGroupWithTX: ", zap.String("user_id", in.UserId), zap.Error(err))
 			return fmt.Errorf("failed to delete member from group: %w", err)
 		}
@@ -301,7 +295,6 @@ func (s *serviceImpl) Leave(ctx context.Context, in *proto.LeaveGroupRequest) (*
 		return nil, status.Error(codes.Internal, "failed to find updated group")
 	}
 
-	// Update cache
 	s.updateGroupCache(existedGroup)
 	s.updateGroupCache(updatedGroup)
 
@@ -370,7 +363,6 @@ func (s *serviceImpl) Join(ctx context.Context, in *proto.JoinGroupRequest) (*pr
 		return nil, status.Error(codes.Internal, "failed to find updated group")
 	}
 
-	// Update cache
 	s.updateGroupCache(updatedGroup)
 
 	groupRPC := s.convertToGroupRPC(updatedGroup)
@@ -381,8 +373,6 @@ func (s *serviceImpl) Join(ctx context.Context, in *proto.JoinGroupRequest) (*pr
 
 	return &proto.JoinGroupResponse{Group: groupRPC}, nil
 }
-
-// Helper functions
 
 func (s *serviceImpl) updateGroupCache(group *model.Group) {
 	groupRPC := s.convertToGroupRPC(group)
