@@ -15,7 +15,7 @@ type Repository interface {
 	FindOne(userId *uuid.UUID) (*model.Group, error)
 	FindByToken(token string) (*model.Group, error)
 	Update(leaderUUID *uuid.UUID, group *model.Group) error
-	DeleteMemberFromGroupWithTX(ctx context.Context, tx *gorm.DB, userUUID, groupUUID uuid.UUID) error
+	MoveUserToNewGroup(ctx context.Context, tx *gorm.DB, userUUID, groupUUID uuid.UUID) error
 	CreateNewGroupWithTX(ctx context.Context, tx *gorm.DB, leaderId *uuid.UUID) (*model.Group, error)
 	JoinGroupWithTX(ctx context.Context, tx *gorm.DB, userUUID, groupUUID uuid.UUID) error
 	DeleteGroup(ctx context.Context, tx *gorm.DB, groupUUID uuid.UUID) error
@@ -96,7 +96,7 @@ func (r *repositoryImpl) Update(leaderUUID *uuid.UUID, group *model.Group) error
 	return nil
 }
 
-func (r *repositoryImpl) DeleteMemberFromGroupWithTX(ctx context.Context, tx *gorm.DB, userUUID, groupUUID uuid.UUID) error {
+func (r *repositoryImpl) MoveUserToNewGroup(ctx context.Context, tx *gorm.DB, userUUID, groupUUID uuid.UUID) error {
 	updateMap := map[string]interface{}{
 		"group_id": groupUUID,
 	}
