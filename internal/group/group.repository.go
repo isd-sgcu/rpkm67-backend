@@ -10,9 +10,10 @@ import (
 
 type Repository interface {
 	WithTransaction(txFunc func(*gorm.DB) error) error
-	FindOne(userId *uuid.UUID) (*model.Group, error)
+	FindOne(id string) (*model.Group, error)
+	FindByUserId(userId string) (*model.Group, error)
 	FindByToken(token string) (*model.Group, error)
-	Update(leaderUUID *uuid.UUID, group *model.Group) error
+	Update(leaderUUID string, group *model.Group) error
 	MoveUserToNewGroup(tx *gorm.DB, userUUID, groupUUID uuid.UUID) error
 	CreateNewGroupWithTX(tx *gorm.DB, leaderId *uuid.UUID) (*model.Group, error)
 	JoinGroupWithTX(tx *gorm.DB, userUUID, groupUUID uuid.UUID) error
@@ -49,7 +50,16 @@ func (r *repositoryImpl) WithTransaction(txFunc func(*gorm.DB) error) error {
 	return tx.Commit().Error
 }
 
-func (r *repositoryImpl) FindOne(userId *uuid.UUID) (*model.Group, error) {
+func (r *repositoryImpl) FindOne(id string) (*model.Group, error) {
+	var group model.Group
+	if err := r.Db.Preload("Members").First(&group, "id = ?", id).Error; err != nil {
+		return nil, err
+	}
+
+	return &group, nil
+}
+
+func (r *repositoryImpl) FindByUserId(userId string) (*model.Group, error) {
 	var group model.Group
 	if err := r.Db.
 		Preload("Members").
@@ -73,7 +83,7 @@ func (r *repositoryImpl) FindByToken(token string) (*model.Group, error) {
 	return &group, nil
 }
 
-func (r *repositoryImpl) Update(leaderUUID *uuid.UUID, group *model.Group) error {
+func (r *repositoryImpl) Update(leaderUUID string, group *model.Group) error {
 	result := r.Db.Model(&model.Group{}).Where("leader_id = ?", leaderUUID).Update("is_confirmed", group.IsConfirmed)
 	if result.Error != nil {
 		return result.Error
