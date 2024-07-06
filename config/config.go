@@ -24,6 +24,7 @@ type RedisConfig struct {
 
 type GroupConfig struct {
 	Capacity int
+	CacheTTL int
 }
 
 type PinConfig struct {
@@ -81,9 +82,14 @@ func LoadConfig() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	groupCacheTTL, err := strconv.ParseInt(os.Getenv("GROUP_CACHE_TTL"), 10, 64)
+	if err != nil {
+		return nil, err
+	}
 
 	groupConfig := GroupConfig{
 		Capacity: int(groupCapacity),
+		CacheTTL: int(groupCacheTTL),
 	}
 
 	pinConfig := PinConfig{

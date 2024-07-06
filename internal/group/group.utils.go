@@ -24,3 +24,12 @@ func ModelToProto(group *model.Group) *proto.Group {
 		Members:     membersRPC,
 	}
 }
+
+func UserToUserInfo(user *model.User) *proto.UserInfo {
+	return &proto.UserInfo{
+		Id:        user.ID.String(),
+		Firstname: user.Firstname,
+		Lastname:  user.Lastname,
+		ImageUrl:  user.PhotoUrl,
+	}
+}
