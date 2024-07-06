@@ -6,7 +6,7 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/google/uuid v1.6.0
 	github.com/isd-sgcu/rpkm67-go-proto v0.2.8
-	github.com/isd-sgcu/rpkm67-model v0.0.6
+	github.com/isd-sgcu/rpkm67-model v0.0.7
 	github.com/joho/godotenv v1.5.1
 	github.com/redis/go-redis/v9 v9.5.3
 	github.com/stretchr/testify v1.9.0

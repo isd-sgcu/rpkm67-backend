@@ -12,11 +12,11 @@ import (
 
 type Repository interface {
 	WithTransaction(txFunc func(*gorm.DB) error) error
-	FindOne(userId uuid.UUID) (*model.Group, error)
+	FindOne(userId *uuid.UUID) (*model.Group, error)
 	FindByToken(token string) (*model.Group, error)
-	Update(leaderUUID uuid.UUID, group *model.Group) error
+	Update(leaderUUID *uuid.UUID, group *model.Group) error
 	DeleteMemberFromGroupWithTX(ctx context.Context, tx *gorm.DB, userUUID, groupUUID uuid.UUID) error
-	CreateNewGroupWithTX(ctx context.Context, tx *gorm.DB, leaderId string) (*model.Group, error)
+	CreateNewGroupWithTX(ctx context.Context, tx *gorm.DB, leaderId *uuid.UUID) (*model.Group, error)
 	JoinGroupWithTX(ctx context.Context, tx *gorm.DB, userUUID, groupUUID uuid.UUID) error
 	DeleteGroup(ctx context.Context, tx *gorm.DB, groupUUID uuid.UUID) error
 }
@@ -51,7 +51,7 @@ func (r *repositoryImpl) WithTransaction(txFunc func(*gorm.DB) error) error {
 	return tx.Commit().Error
 }
 
-func (r *repositoryImpl) FindOne(userId uuid.UUID) (*model.Group, error) {
+func (r *repositoryImpl) FindOne(userId *uuid.UUID) (*model.Group, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
@@ -81,7 +81,7 @@ func (r *repositoryImpl) FindByToken(token string) (*model.Group, error) {
 	return &group, nil
 }
 
-func (r *repositoryImpl) Update(leaderUUID uuid.UUID, group *model.Group) error {
+func (r *repositoryImpl) Update(leaderUUID *uuid.UUID, group *model.Group) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
@@ -111,7 +111,7 @@ func (r *repositoryImpl) DeleteMemberFromGroupWithTX(ctx context.Context, tx *go
 	return nil
 }
 
-func (r *repositoryImpl) CreateNewGroupWithTX(ctx context.Context, tx *gorm.DB, leaderId string) (*model.Group, error) {
+func (r *repositoryImpl) CreateNewGroupWithTX(ctx context.Context, tx *gorm.DB, leaderId *uuid.UUID) (*model.Group, error) {
 	group := model.Group{
 		LeaderID: leaderId,
 	}

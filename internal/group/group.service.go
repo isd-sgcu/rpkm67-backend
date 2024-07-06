@@ -52,7 +52,7 @@ func (s *serviceImpl) FindOne(ctx context.Context, in *proto.FindOneGroupRequest
 		return nil, status.Error(codes.Internal, "userId is invalid UUID")
 	}
 
-	group, err := s.repo.FindOne(userUUID)
+	group, err := s.repo.FindOne(&userUUID)
 	if err != nil {
 		s.log.Named("FindOne").Error("FindOne: ", zap.String("user_id", in.UserId), zap.Error(err))
 		return nil, status.Error(codes.Internal, "failed to find group")
@@ -130,18 +130,18 @@ func (s *serviceImpl) Update(ctx context.Context, in *proto.UpdateGroupRequest) 
 		return nil, status.Error(codes.InvalidArgument, "leaderId is invalid UUID")
 	}
 
-	_, err = s.repo.FindOne(leaderUUID)
+	_, err = s.repo.FindOne(&leaderUUID)
 	if err != nil {
 		s.log.Named("Update").Error("FindOne group: ", zap.String("leader_id", in.LeaderId), zap.Error(err))
 		return nil, status.Error(codes.Internal, "failed to find group")
 	}
 
-	if err := s.repo.Update(leaderUUID, &model.Group{IsConfirmed: in.Group.IsConfirmed}); err != nil {
+	if err := s.repo.Update(&leaderUUID, &model.Group{IsConfirmed: in.Group.IsConfirmed}); err != nil {
 		s.log.Named("Update").Error("Update: ", zap.String("leader_id", in.LeaderId), zap.Error(err))
 		return nil, status.Error(codes.Internal, "failed to update group")
 	}
 
-	updatedGroup, err := s.repo.FindOne(leaderUUID)
+	updatedGroup, err := s.repo.FindOne(&leaderUUID)
 	if err != nil {
 		s.log.Named("Update").Error("FindOne updatedGroup: ", zap.String("leader_id", in.LeaderId), zap.Error(err))
 		return nil, status.Error(codes.Internal, "failed to find updated group")
@@ -173,13 +173,13 @@ func (s *serviceImpl) DeleteMember(ctx context.Context, in *proto.DeleteMemberGr
 		return nil, status.Error(codes.InvalidArgument, "userId is invalid UUID")
 	}
 
-	group, err := s.repo.FindOne(leaderUUID)
+	group, err := s.repo.FindOne(&leaderUUID)
 	if err != nil {
 		s.log.Named("DeleteMember").Error("FindOne: ", zap.String("leader_id", in.LeaderId), zap.Error(err))
 		return nil, status.Error(codes.Internal, "failed to find group")
 	}
 
-	if in.LeaderId != group.LeaderID {
+	if &leaderUUID != group.LeaderID {
 		s.log.Named("DeleteMember").Error("Requested leader_id is not leader of this group", zap.String("leader_id", in.LeaderId))
 		return nil, status.Error(codes.PermissionDenied, "requested leader_id is not leader of this group")
 	}
@@ -201,7 +201,7 @@ func (s *serviceImpl) DeleteMember(ctx context.Context, in *proto.DeleteMemberGr
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 
-		createdGroup, err := s.repo.CreateNewGroupWithTX(ctx, tx, userUUID.String())
+		createdGroup, err := s.repo.CreateNewGroupWithTX(ctx, tx, &userUUID)
 		if err != nil {
 			s.log.Named("DeleteMember").Error("CreateNewGroupWithTX: ", zap.String("user_id", in.UserId), zap.Error(err))
 			return fmt.Errorf("failed to create new group: %w", err)
@@ -213,7 +213,7 @@ func (s *serviceImpl) DeleteMember(ctx context.Context, in *proto.DeleteMemberGr
 		}
 
 		// find created group for updating cache of poor user
-		newGroup, err = s.repo.FindOne(userUUID)
+		newGroup, err = s.repo.FindOne(&userUUID)
 		if err != nil {
 			s.log.Named("DeleteMember").Error("FindOne: ", zap.String("user_id", in.UserId), zap.Error(err))
 			return err
@@ -227,7 +227,7 @@ func (s *serviceImpl) DeleteMember(ctx context.Context, in *proto.DeleteMemberGr
 		return nil, status.Error(codes.Internal, fmt.Sprintf("transaction failed: %s", err.Error()))
 	}
 
-	updatedGroup, err := s.repo.FindOne(leaderUUID)
+	updatedGroup, err := s.repo.FindOne(&leaderUUID)
 	if err != nil {
 		s.log.Named("DeleteMember").Error("FindOne updatedGroup: ", zap.String("leader_id", in.LeaderId), zap.Error(err))
 		return nil, status.Error(codes.Internal, "failed to find updated group")
@@ -254,13 +254,13 @@ func (s *serviceImpl) Leave(ctx context.Context, in *proto.LeaveGroupRequest) (*
 		return nil, status.Error(codes.InvalidArgument, "userId is invalid UUID")
 	}
 
-	group, err := s.repo.FindOne(userUUID)
+	group, err := s.repo.FindOne(&userUUID)
 	if err != nil {
 		s.log.Named("Leave").Error("FindOne group: ", zap.String("user_id", in.UserId), zap.Error(err))
 		return nil, status.Error(codes.Internal, "failed to find group")
 	}
 
-	if in.UserId == group.LeaderID {
+	if &userUUID == group.LeaderID {
 		s.log.Named("Leave").Error("User is the leader of the group", zap.String("user_id", in.UserId))
 		return nil, status.Error(codes.PermissionDenied, "You are the group leader, so you cannot leave")
 	}
@@ -269,7 +269,7 @@ func (s *serviceImpl) Leave(ctx context.Context, in *proto.LeaveGroupRequest) (*
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 
-		createdGroup, err := s.repo.CreateNewGroupWithTX(ctx, tx, userUUID.String())
+		createdGroup, err := s.repo.CreateNewGroupWithTX(ctx, tx, &userUUID)
 		if err != nil {
 			s.log.Named("Leave").Error("CreateNewGroupWithTX: ", zap.String("user_id", in.UserId), zap.Error(err))
 			return fmt.Errorf("failed to create new group: %w", err)
@@ -288,19 +288,14 @@ func (s *serviceImpl) Leave(ctx context.Context, in *proto.LeaveGroupRequest) (*
 		return nil, status.Error(codes.Internal, fmt.Sprintf("transaction failed: %s", err.Error()))
 	}
 
-	leaderExistedGroup := group.LeaderID
-	leaderExistedGroupUUID, err := uuid.Parse(leaderExistedGroup)
-	if err != nil {
-		s.log.Named("Leave").Error("Parse: ", zap.String("leader_id", leaderExistedGroup), zap.Error(err))
-		return nil, status.Error(codes.Internal, "leaderId is invalid UUID")
-	}
+	leaderExistedGroupUUID := group.LeaderID
 	existedGroup, err := s.repo.FindOne(leaderExistedGroupUUID)
 	if err != nil {
-		s.log.Named("Leave").Error("FindOne existedGroup: ", zap.String("leader_id", leaderExistedGroup), zap.Error(err))
+		s.log.Named("Leave").Error("FindOne existedGroup: ", zap.Any("leader_id", leaderExistedGroupUUID), zap.Error(err))
 		return nil, status.Error(codes.Internal, "failed to find group")
 	}
 
-	updatedGroup, err := s.repo.FindOne(userUUID)
+	updatedGroup, err := s.repo.FindOne(&userUUID)
 	if err != nil {
 		s.log.Named("Leave").Error("FindOne updatedGroup: ", zap.String("user_id", in.UserId), zap.Error(err))
 		return nil, status.Error(codes.Internal, "failed to find updated group")
@@ -326,13 +321,13 @@ func (s *serviceImpl) Join(ctx context.Context, in *proto.JoinGroupRequest) (*pr
 		return nil, status.Error(codes.InvalidArgument, "userId is invalid UUID")
 	}
 
-	existedGroup, err := s.repo.FindOne(userUUID)
+	existedGroup, err := s.repo.FindOne(&userUUID)
 	if err != nil {
 		s.log.Named("Join").Error("FindOne existedGroup: ", zap.String("user_id", in.UserId), zap.Error(err))
 		return nil, status.Error(codes.Internal, "failed to find existing group of user")
 	}
 
-	if in.UserId == existedGroup.LeaderID && len(existedGroup.Members) > 1 {
+	if &userUUID == existedGroup.LeaderID && len(existedGroup.Members) > 1 {
 		s.log.Named("Join").Error("User is the leader of a group with >1 members", zap.String("user_id", in.UserId))
 		return nil, status.Error(codes.PermissionDenied, "You are the group leader, so you must kick all other members before joining another group")
 	}
@@ -353,7 +348,7 @@ func (s *serviceImpl) Join(ctx context.Context, in *proto.JoinGroupRequest) (*pr
 			return fmt.Errorf("failed to join group: %w", err)
 		}
 
-		if in.UserId == existedGroup.LeaderID && len(existedGroup.Members) == 1 {
+		if &userUUID == existedGroup.LeaderID && len(existedGroup.Members) == 1 {
 			err := s.repo.DeleteGroup(ctx, tx, existedGroup.ID)
 			if err != nil {
 				s.log.Named("Join").Error("DeleteGroup: ", zap.String("group_id", existedGroup.ID.String()), zap.Error(err))
@@ -369,7 +364,7 @@ func (s *serviceImpl) Join(ctx context.Context, in *proto.JoinGroupRequest) (*pr
 		return nil, status.Error(codes.Internal, fmt.Sprintf("transaction failed: %s", err.Error()))
 	}
 
-	updatedGroup, err := s.repo.FindOne(userUUID)
+	updatedGroup, err := s.repo.FindOne(&userUUID)
 	if err != nil {
 		s.log.Named("Join").Error("FindOne updatedGroup: ", zap.String("user_id", in.UserId), zap.Error(err))
 		return nil, status.Error(codes.Internal, "failed to find updated group")
@@ -413,7 +408,7 @@ func (s *serviceImpl) convertToGroupRPC(group *model.Group) *proto.Group {
 
 	return &proto.Group{
 		Id:          group.ID.String(),
-		LeaderID:    group.LeaderID,
+		LeaderID:    group.LeaderID.String(),
 		Token:       group.Token,
 		IsConfirmed: group.IsConfirmed,
 		Members:     membersRPC,
