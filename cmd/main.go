@@ -58,7 +58,7 @@ func main() {
 	stampSvc := stamp.NewService(stampRepo, constant.ActivityIdToIdx, logger.Named("stampSvc"))
 
 	groupRepo := group.NewRepository(db)
-	groupSvc := group.NewService(groupRepo, cacheRepo, logger.Named("groupSvc"))
+	groupSvc := group.NewService(groupRepo, cacheRepo, &conf.Group, logger.Named("groupSvc"))
 
 	selectionRepo := selection.NewRepository(db)
 	selectionSvc := selection.NewService(selectionRepo, cacheRepo, logger.Named("selectionSvc"))

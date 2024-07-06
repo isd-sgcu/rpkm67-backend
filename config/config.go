@@ -22,6 +22,10 @@ type RedisConfig struct {
 	Password string
 }
 
+type GroupConfig struct {
+	Capacity int
+}
+
 type PinConfig struct {
 	WorkshopCode  string
 	WorkshopCount int
@@ -32,6 +36,7 @@ type Config struct {
 	App   AppConfig
 	Db    DbConfig
 	Redis RedisConfig
+	Group GroupConfig
 	Pin   PinConfig
 }
 
@@ -72,6 +77,15 @@ func LoadConfig() (*Config, error) {
 		return nil, err
 	}
 
+	groupCapacity, err := strconv.ParseInt(os.Getenv("GROUP_CAPACITY"), 10, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	groupConfig := GroupConfig{
+		Capacity: int(groupCapacity),
+	}
+
 	pinConfig := PinConfig{
 		WorkshopCode:  os.Getenv("PIN_WORKSHOP_CODE"),
 		WorkshopCount: int(workshopCount),
@@ -83,6 +97,7 @@ func LoadConfig() (*Config, error) {
 		App:   appConfig,
 		Db:    dbConfig,
 		Redis: redisConfig,
+		Group: groupConfig,
 		Pin:   pinConfig,
 	}, nil
 }
