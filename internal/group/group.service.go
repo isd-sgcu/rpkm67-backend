@@ -35,7 +35,7 @@ func NewService(repo Repository, cache cache.Repository, log *zap.Logger) Servic
 }
 
 func (s *serviceImpl) FindOne(ctx context.Context, in *proto.FindOneGroupRequest) (*proto.FindOneGroupResponse, error) {
-	cacheKey := fmt.Sprintf("group:%s", in.UserId)
+	cacheKey := groupKey(in.UserId)
 	var cachedGroup proto.Group
 
 	err := s.cache.GetValue(cacheKey, &cachedGroup)
@@ -72,7 +72,7 @@ func (s *serviceImpl) FindOne(ctx context.Context, in *proto.FindOneGroupRequest
 }
 
 func (s *serviceImpl) FindByToken(ctx context.Context, in *proto.FindByTokenGroupRequest) (*proto.FindByTokenGroupResponse, error) {
-	cacheKey := fmt.Sprintf("group_token:%s", in.Token)
+	cacheKey := groupTokenKey(in.Token)
 	var cachedGroup proto.FindByTokenGroupResponse
 
 	err := s.cache.GetValue(cacheKey, &cachedGroup)
@@ -377,9 +377,16 @@ func (s *serviceImpl) Join(ctx context.Context, in *proto.JoinGroupRequest) (*pr
 func (s *serviceImpl) updateGroupCache(group *model.Group) {
 	groupRPC := ModelToProto(group)
 	for _, member := range group.Members {
-		cacheKey := fmt.Sprintf("group:%s", member.ID.String())
-		if err := s.cache.SetValue(cacheKey, groupRPC, 3600); err != nil {
+		if err := s.cache.SetValue(groupKey(member.ID.String()), groupRPC, 3600); err != nil {
 			s.log.Named("UpdateGroupCache").Warn("SetValue: Failed to update group cache", zap.String("user_id", member.ID.String()), zap.Error(err))
 		}
 	}
+}
+
+func groupKey(key string) string {
+	return fmt.Sprintf("group_id:%s", key)
+}
+
+func groupTokenKey(key string) string {
+	return fmt.Sprintf("group_token:%s", key)
 }
