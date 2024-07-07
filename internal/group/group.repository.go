@@ -1,9 +1,7 @@
 package group
 
 import (
-	"context"
 	"errors"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/isd-sgcu/rpkm67-model/model"
@@ -12,13 +10,13 @@ import (
 
 type Repository interface {
 	WithTransaction(txFunc func(*gorm.DB) error) error
-	FindOne(userId *uuid.UUID) (*model.Group, error)
-	FindByToken(token string) (*model.Group, error)
-	Update(leaderUUID *uuid.UUID, group *model.Group) error
-	DeleteMemberFromGroupWithTX(ctx context.Context, tx *gorm.DB, userUUID, groupUUID uuid.UUID) error
-	CreateNewGroupWithTX(ctx context.Context, tx *gorm.DB, leaderId *uuid.UUID) (*model.Group, error)
-	JoinGroupWithTX(ctx context.Context, tx *gorm.DB, userUUID, groupUUID uuid.UUID) error
-	DeleteGroup(ctx context.Context, tx *gorm.DB, groupUUID uuid.UUID) error
+	FindByUserId(userId string, group *model.Group) error
+	FindByToken(token string, group *model.Group) error
+	Update(id string, group *model.Group) error
+	CreateTX(tx *gorm.DB, group *model.Group) error
+	MoveUserToNewGroupTX(tx *gorm.DB, userId string, groupId *uuid.UUID) error
+	JoinGroupTX(tx *gorm.DB, userId string, groupId *uuid.UUID) error
+	DeleteGroupTX(tx *gorm.DB, groupId *uuid.UUID) error
 }
 
 type repositoryImpl struct {
@@ -51,56 +49,39 @@ func (r *repositoryImpl) WithTransaction(txFunc func(*gorm.DB) error) error {
 	return tx.Commit().Error
 }
 
-func (r *repositoryImpl) FindOne(userId *uuid.UUID) (*model.Group, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-
-	var group model.Group
-	if err := r.Db.WithContext(ctx).
-		Preload("Members").
+func (r *repositoryImpl) FindByUserId(userId string, group *model.Group) error {
+	return r.Db.Preload("Members").Preload("Selections").
 		Where("id = (SELECT group_id FROM users WHERE id = ?)", userId).
-		First(&group).Error; err != nil {
-		return nil, err
-	}
-
-	return &group, nil
+		First(&group).Error
 }
 
-func (r *repositoryImpl) FindByToken(token string) (*model.Group, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-
-	var group model.Group
-	if err := r.Db.WithContext(ctx).
-		Preload("Members").
+func (r *repositoryImpl) FindByToken(token string, group *model.Group) error {
+	return r.Db.Preload("Members").
 		Joins("JOIN users ON users.id = groups.leader_id").
-		First(&group, "token = ?", token).Error; err != nil {
-		return nil, err
-	}
-
-	return &group, nil
+		First(&group, "token = ?", token).Error
 }
 
-func (r *repositoryImpl) Update(leaderUUID *uuid.UUID, group *model.Group) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-
-	result := r.Db.WithContext(ctx).Model(&model.Group{}).Where("leader_id = ?", leaderUUID).Update("is_confirmed", group.IsConfirmed)
+func (r *repositoryImpl) Update(id string, group *model.Group) error {
+	result := r.Db.Model(&model.Group{}).Where("id = ?", id).Update("is_confirmed", group.IsConfirmed)
 	if result.Error != nil {
 		return result.Error
 	}
 	if result.RowsAffected == 0 {
-		return errors.New("no promotion found with the given ID")
+		return errors.New("no group found with the given id")
 	}
 
 	return nil
 }
 
-func (r *repositoryImpl) DeleteMemberFromGroupWithTX(ctx context.Context, tx *gorm.DB, userUUID, groupUUID uuid.UUID) error {
+func (r *repositoryImpl) CreateTX(tx *gorm.DB, group *model.Group) error {
+	return tx.Create(&group).Error
+}
+
+func (r *repositoryImpl) MoveUserToNewGroupTX(tx *gorm.DB, userId string, groupId *uuid.UUID) error {
 	updateMap := map[string]interface{}{
-		"group_id": groupUUID,
+		"group_id": groupId,
 	}
-	result := r.Db.WithContext(ctx).Model(&model.User{}).Where("id = ?", userUUID).Updates(updateMap)
+	result := tx.Model(&model.User{}).Where("id = ?", userId).Updates(updateMap)
 	if result.Error != nil {
 		return result.Error
 	}
@@ -111,24 +92,12 @@ func (r *repositoryImpl) DeleteMemberFromGroupWithTX(ctx context.Context, tx *go
 	return nil
 }
 
-func (r *repositoryImpl) CreateNewGroupWithTX(ctx context.Context, tx *gorm.DB, leaderId *uuid.UUID) (*model.Group, error) {
-	group := model.Group{
-		LeaderID: leaderId,
-	}
-
-	if err := r.Db.WithContext(ctx).Create(&group).Error; err != nil {
-		return nil, err
-	}
-
-	return &group, nil
-}
-
-func (r *repositoryImpl) JoinGroupWithTX(ctx context.Context, tx *gorm.DB, userUUID, groupUUID uuid.UUID) error {
+func (r *repositoryImpl) JoinGroupTX(tx *gorm.DB, userId string, groupId *uuid.UUID) error {
 	updateMap := map[string]interface{}{
-		"group_id": groupUUID,
+		"group_id": groupId,
 	}
 
-	result := r.Db.WithContext(ctx).Model(&model.User{}).Where("id = ?", userUUID).Updates(updateMap)
+	result := tx.Model(&model.User{}).Where("id = ?", userId).Updates(updateMap)
 	if result.Error != nil {
 		return result.Error
 	}
@@ -139,8 +108,8 @@ func (r *repositoryImpl) JoinGroupWithTX(ctx context.Context, tx *gorm.DB, userU
 	return nil
 }
 
-func (r *repositoryImpl) DeleteGroup(ctx context.Context, tx *gorm.DB, groupUUID uuid.UUID) error {
-	result := r.Db.Delete(&model.Group{}, "id = ?", groupUUID)
+func (r *repositoryImpl) DeleteGroupTX(tx *gorm.DB, groupId *uuid.UUID) error {
+	result := tx.Delete(&model.Group{}, "id = ?", groupId)
 	if result.Error != nil {
 		return result.Error
 	}
