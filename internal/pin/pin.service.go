@@ -81,7 +81,10 @@ func (s *serviceImpl) ResetPin(_ context.Context, in *proto.ResetPinRequest) (re
 	}
 
 	return &proto.ResetPinResponse{
-		Success: true,
+		Pin: &proto.Pin{
+			ActivityId: in.ActivityId,
+			Code:       code,
+		},
 	}, nil
 }
 
