@@ -33,6 +33,7 @@ func NewService(repo Repository, userRepo user.Repository, cache cache.Repositor
 		repo:     repo,
 		userRepo: userRepo,
 		cache:    cache,
+		conf:     conf,
 		log:      log,
 	}
 }
