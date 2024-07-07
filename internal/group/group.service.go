@@ -54,7 +54,7 @@ func (s *serviceImpl) findByUserId(userId string) (*model.Group, error) {
 	cacheKey := groupByUserIdKey(userId)
 	cachedGroup := &model.Group{}
 
-	if err := s.cache.GetValue(cacheKey, &cachedGroup); err == nil {
+	if err := s.cache.GetValue(cacheKey, cachedGroup); err == nil {
 		s.log.Named("findByUserId").Info("GetValue: Group found in cache", zap.String("userId", userId))
 		return cachedGroup, nil
 	}
@@ -372,9 +372,8 @@ func (s *serviceImpl) Join(_ context.Context, in *proto.JoinGroupRequest) (*prot
 }
 
 func (s *serviceImpl) updateGroupCacheByUserId(group *model.Group) error {
-	groupRPC := ModelToProto(group)
 	for _, member := range group.Members {
-		if err := s.cache.SetValue(groupByUserIdKey(member.ID.String()), groupRPC, s.conf.CacheTTL); err != nil {
+		if err := s.cache.SetValue(groupByUserIdKey(member.ID.String()), group, s.conf.CacheTTL); err != nil {
 			return fmt.Errorf("failed to update group cache: %w", err)
 		}
 	}
