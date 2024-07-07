@@ -18,6 +18,7 @@ import (
 	"github.com/isd-sgcu/rpkm67-backend/internal/pin"
 	"github.com/isd-sgcu/rpkm67-backend/internal/selection"
 	"github.com/isd-sgcu/rpkm67-backend/internal/stamp"
+	"github.com/isd-sgcu/rpkm67-backend/internal/user"
 	"github.com/isd-sgcu/rpkm67-backend/logger"
 	groupProto "github.com/isd-sgcu/rpkm67-go-proto/rpkm67/backend/group/v1"
 	pinProto "github.com/isd-sgcu/rpkm67-go-proto/rpkm67/backend/pin/v1"
@@ -57,8 +58,9 @@ func main() {
 	stampRepo := stamp.NewRepository(db)
 	stampSvc := stamp.NewService(stampRepo, constant.ActivityIdToIdx, logger.Named("stampSvc"))
 
+	userRepo := user.NewRepository(db)
 	groupRepo := group.NewRepository(db)
-	groupSvc := group.NewService(groupRepo, cacheRepo, &conf.Group, logger.Named("groupSvc"))
+	groupSvc := group.NewService(groupRepo, userRepo, cacheRepo, &conf.Group, logger.Named("groupSvc"))
 
 	selectionRepo := selection.NewRepository(db)
 	selectionSvc := selection.NewService(selectionRepo, cacheRepo, logger.Named("selectionSvc"))

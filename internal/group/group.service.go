@@ -6,6 +6,7 @@ import (
 
 	"github.com/isd-sgcu/rpkm67-backend/config"
 	"github.com/isd-sgcu/rpkm67-backend/internal/cache"
+	"github.com/isd-sgcu/rpkm67-backend/internal/user"
 	proto "github.com/isd-sgcu/rpkm67-go-proto/rpkm67/backend/group/v1"
 	"github.com/isd-sgcu/rpkm67-model/model"
 	"go.uber.org/zap"
@@ -20,42 +21,91 @@ type Service interface {
 
 type serviceImpl struct {
 	proto.UnimplementedGroupServiceServer
-	repo  Repository
-	cache cache.Repository
-	conf  *config.GroupConfig
-	log   *zap.Logger
+	repo     Repository
+	userRepo user.Repository
+	cache    cache.Repository
+	conf     *config.GroupConfig
+	log      *zap.Logger
 }
 
-func NewService(repo Repository, cache cache.Repository, conf *config.GroupConfig, log *zap.Logger) Service {
+func NewService(repo Repository, userRepo user.Repository, cache cache.Repository, conf *config.GroupConfig, log *zap.Logger) Service {
 	return &serviceImpl{
-		repo:  repo,
-		cache: cache,
-		log:   log,
+		repo:     repo,
+		userRepo: userRepo,
+		cache:    cache,
+		log:      log,
 	}
 }
 
 func (s *serviceImpl) FindByUserId(_ context.Context, in *proto.FindByUserIdGroupRequest) (*proto.FindByUserIdGroupResponse, error) {
-	cacheKey := groupByUserIdKey(in.UserId)
-	var cachedGroup proto.Group
-
-	if err := s.cache.GetValue(cacheKey, &cachedGroup); err == nil {
-		s.log.Named("FindByUserId").Info("GetValue: Group found in cache", zap.String("userId", in.UserId))
-		return &proto.FindByUserIdGroupResponse{Group: &cachedGroup}, nil
-	}
-
-	group := &model.Group{}
-	if err := s.repo.FindByUserId(in.UserId, group); err != nil {
-		s.log.Named("FindByUserId").Error("FindByUserId: ", zap.Error(err))
+	group, err := s.findByUserId(in.UserId)
+	if err != nil {
+		s.log.Named("FindByUserId").Error("findByUserId: ", zap.Error(err))
 		return nil, status.Error(codes.Internal, "failed to find group")
 	}
 
 	groupRPC := ModelToProto(group)
-	if err := s.cache.SetValue(cacheKey, groupRPC, s.conf.CacheTTL); err != nil {
-		s.log.Named("FindByUserId").Error("SetValue: ", zap.Error(err))
+
+	return &proto.FindByUserIdGroupResponse{Group: groupRPC}, nil
+}
+
+func (s *serviceImpl) findByUserId(userId string) (*model.Group, error) {
+	cacheKey := groupByUserIdKey(userId)
+	cachedGroup := &model.Group{}
+
+	if err := s.cache.GetValue(cacheKey, &cachedGroup); err == nil {
+		s.log.Named("findByUserId").Info("GetValue: Group found in cache", zap.String("userId", userId))
+		return cachedGroup, nil
+	}
+
+	user := &model.User{}
+	if err := s.userRepo.FindOne(userId, user); err != nil {
+		s.log.Named("findByUserId").Error("FindOne user: ", zap.Error(err))
+		return nil, status.Error(codes.Internal, "failed to find user")
+	}
+
+	if user.GroupID == nil {
+		err := s.repo.WithTransaction(func(tx *gorm.DB) error {
+			createGroup := &model.Group{
+				LeaderID: &user.ID,
+			}
+
+			if err := s.repo.CreateTX(tx, createGroup); err != nil {
+				s.log.Named("findByUserId").Error("CreateTX: ", zap.Error(err))
+				return fmt.Errorf("failed to create new group: %w", err)
+			}
+
+			if err := s.repo.MoveUserToNewGroupTX(tx, userId, &createGroup.ID); err != nil {
+				s.log.Named("findByUserId").Error("MoveUserToNewGroupTX: ", zap.Error(err))
+				return fmt.Errorf("failed to delete member from group: %w", err)
+			}
+
+			if err := s.userRepo.AssignGroupTX(tx, user.ID.String(), &createGroup.ID); err != nil {
+				s.log.Named("findByUserId").Error("AssignGroupTX: ", zap.Error(err))
+				return fmt.Errorf("failed to assign user to group: %w", err)
+			}
+
+			return nil
+		})
+
+		if err != nil {
+			s.log.Named("findByUserId").Error("WithTransaction: ", zap.Error(err))
+			return nil, status.Error(codes.Internal, fmt.Sprintf("transaction failed: %s", err.Error()))
+		}
+	}
+
+	group := &model.Group{}
+	if err := s.repo.FindOne(user.GroupID.String(), group); err != nil {
+		s.log.Named("findByUserId").Error("FindByUserId: ", zap.Error(err))
+		return nil, status.Error(codes.Internal, "failed to find group")
+	}
+
+	if err := s.cache.SetValue(cacheKey, group, s.conf.CacheTTL); err != nil {
+		s.log.Named("findByUserId").Error("SetValue: ", zap.Error(err))
 		return nil, status.Error(codes.Internal, "failed to cache group")
 	}
 
-	return &proto.FindByUserIdGroupResponse{Group: groupRPC}, nil
+	return group, nil
 }
 
 func (s *serviceImpl) FindByToken(_ context.Context, in *proto.FindByTokenGroupRequest) (*proto.FindByTokenGroupResponse, error) {
@@ -101,30 +151,30 @@ func (s *serviceImpl) FindByToken(_ context.Context, in *proto.FindByTokenGroupR
 }
 
 func (s *serviceImpl) UpdateConfirm(_ context.Context, in *proto.UpdateConfirmGroupRequest) (*proto.UpdateConfirmGroupResponse, error) {
-	group := &model.Group{}
-	if err := s.repo.FindByUserId(in.LeaderId, group); err != nil {
-		s.log.Named("Update").Error("FindOne group: ", zap.Error(err))
-		return nil, status.Error(codes.Internal, "failed to find group")
+	group, err := s.findByUserId(in.LeaderId)
+	if err != nil {
+		s.log.Named("UpdateConfirm").Error("findByUserId: ", zap.Error(err))
+		return nil, err
 	}
 
 	if err := s.checkGroup(group); err != nil {
-		s.log.Named("Update").Error("checkGroup: ", zap.Error(err))
+		s.log.Named("UpdateConfirm").Error("checkGroup: ", zap.Error(err))
 		return nil, status.Error(codes.Internal, "group failed validation")
 	}
 
 	if group.LeaderID.String() != in.LeaderId {
-		s.log.Named("Update").Error("Requested leader_id is not leader of this group", zap.String("leader_id", in.LeaderId))
+		s.log.Named("UpdateConfirm").Error("Requested leader_id is not leader of this group", zap.String("leader_id", in.LeaderId))
 		return nil, status.Error(codes.PermissionDenied, "requested leader_id is not leader of this group")
 	}
 
 	group.IsConfirmed = in.IsConfirmed
-	if err := s.repo.Update(group.ID.String(), group); err != nil {
-		s.log.Named("Update").Error("Update: ", zap.Error(err))
+	if err := s.repo.UpdateConfirm(group.ID.String(), group); err != nil {
+		s.log.Named("UpdateConfirm").Error("Update: ", zap.Error(err))
 		return nil, status.Error(codes.Internal, "failed to update group")
 	}
 
 	if err := s.updateGroupCacheByUserId(group); err != nil {
-		s.log.Named("Update").Error("updateGroupCacheByUserId: ", zap.Error(err))
+		s.log.Named("UpdateConfirm").Error("updateGroupCacheByUserId: ", zap.Error(err))
 		return nil, status.Error(codes.Internal, "failed to update group cache")
 	}
 	groupRPC := ModelToProto(group)
@@ -133,10 +183,10 @@ func (s *serviceImpl) UpdateConfirm(_ context.Context, in *proto.UpdateConfirmGr
 }
 
 func (s *serviceImpl) DeleteMember(_ context.Context, in *proto.DeleteMemberGroupRequest) (*proto.DeleteMemberGroupResponse, error) {
-	group := &model.Group{}
-	if err := s.repo.FindByUserId(in.UserId, group); err != nil {
-		s.log.Named("DeleteMember").Error("FindOne: ", zap.Error(err))
-		return nil, status.Error(codes.Internal, "failed to find group")
+	group, err := s.findByUserId(in.UserId)
+	if err != nil {
+		s.log.Named("DeleteMember").Error("findByUserId group: ", zap.Error(err))
+		return nil, err
 	}
 
 	if in.LeaderId != group.LeaderID.String() {
@@ -156,7 +206,7 @@ func (s *serviceImpl) DeleteMember(_ context.Context, in *proto.DeleteMemberGrou
 		return nil, status.Error(codes.NotFound, "requested user_id is not in the group")
 	}
 
-	err := s.repo.WithTransaction(func(tx *gorm.DB) error {
+	err = s.repo.WithTransaction(func(tx *gorm.DB) error {
 		createGroup := &model.Group{
 			LeaderID: group.LeaderID,
 		}
@@ -179,15 +229,15 @@ func (s *serviceImpl) DeleteMember(_ context.Context, in *proto.DeleteMemberGrou
 		return nil, status.Error(codes.Internal, fmt.Sprintf("transaction failed: %s", err.Error()))
 	}
 
-	newGroup := &model.Group{}
-	if err := s.repo.FindByUserId(in.UserId, newGroup); err != nil {
-		s.log.Named("DeleteMember").Error("FindOne newGroup: ", zap.Error(err))
-		return nil, status.Error(codes.Internal, "failed to find new group")
+	newGroup, err := s.findByUserId(in.UserId)
+	if err != nil {
+		s.log.Named("DeleteMember").Error("findByUserId newGroup: ", zap.Error(err))
+		return nil, err
 	}
-	updatedGroup := &model.Group{}
-	if err := s.repo.FindByUserId(in.LeaderId, updatedGroup); err != nil {
-		s.log.Named("DeleteMember").Error("FindOne updatedGroup: ", zap.Error(err))
-		return nil, status.Error(codes.Internal, "failed to find updated group")
+	updatedGroup, err := s.findByUserId(in.LeaderId)
+	if err != nil {
+		s.log.Named("DeleteMember").Error("findByUserId updatedGroup: ", zap.Error(err))
+		return nil, err
 	}
 
 	if err := s.updateGroupCacheByUserId(newGroup); err != nil {
@@ -205,10 +255,10 @@ func (s *serviceImpl) DeleteMember(_ context.Context, in *proto.DeleteMemberGrou
 }
 
 func (s *serviceImpl) Leave(_ context.Context, in *proto.LeaveGroupRequest) (*proto.LeaveGroupResponse, error) {
-	group := &model.Group{}
-	if err := s.repo.FindByUserId(in.UserId, group); err != nil {
-		s.log.Named("Leave").Error("FindOne group: ", zap.String("user_id", in.UserId), zap.Error(err))
-		return nil, status.Error(codes.Internal, "failed to find group")
+	group, err := s.findByUserId(in.UserId)
+	if err != nil {
+		s.log.Named("Leave").Error("findByUserId group: ", zap.Error(err))
+		return nil, err
 	}
 
 	if in.UserId == group.LeaderID.String() {
@@ -216,7 +266,7 @@ func (s *serviceImpl) Leave(_ context.Context, in *proto.LeaveGroupRequest) (*pr
 		return nil, status.Error(codes.PermissionDenied, "You are the group leader, so you cannot leave")
 	}
 
-	err := s.repo.WithTransaction(func(tx *gorm.DB) error {
+	err = s.repo.WithTransaction(func(tx *gorm.DB) error {
 		createGroup := &model.Group{
 			LeaderID: group.LeaderID,
 		}
@@ -239,15 +289,15 @@ func (s *serviceImpl) Leave(_ context.Context, in *proto.LeaveGroupRequest) (*pr
 		return nil, status.Error(codes.Internal, fmt.Sprintf("transaction failed: %s", err.Error()))
 	}
 
-	newGroup := &model.Group{}
-	if err := s.repo.FindByUserId(in.UserId, newGroup); err != nil {
-		s.log.Named("DeleteMember").Error("FindOne newGroup: ", zap.Error(err))
-		return nil, status.Error(codes.Internal, "failed to find new group")
+	newGroup, err := s.findByUserId(in.UserId)
+	if err != nil {
+		s.log.Named("Leave").Error("findByUserId group: ", zap.Error(err))
+		return nil, err
 	}
-	updatedGroup := &model.Group{}
-	if err := s.repo.FindByUserId(group.LeaderID.String(), updatedGroup); err != nil {
-		s.log.Named("DeleteMember").Error("FindOne updatedGroup: ", zap.Error(err))
-		return nil, status.Error(codes.Internal, "failed to find updated group")
+	updatedGroup, err := s.findByUserId(group.LeaderID.String())
+	if err != nil {
+		s.log.Named("Leave").Error("findByUserId group: ", zap.Error(err))
+		return nil, err
 	}
 
 	if err := s.updateGroupCacheByUserId(newGroup); err != nil {
@@ -265,10 +315,10 @@ func (s *serviceImpl) Leave(_ context.Context, in *proto.LeaveGroupRequest) (*pr
 }
 
 func (s *serviceImpl) Join(_ context.Context, in *proto.JoinGroupRequest) (*proto.JoinGroupResponse, error) {
-	prevGroup := &model.Group{}
-	if err := s.repo.FindByUserId(in.UserId, prevGroup); err != nil {
-		s.log.Named("Join").Error("FindByUserId prevGroup: ", zap.Error(err))
-		return nil, status.Error(codes.Internal, "failed to find previous group of user")
+	prevGroup, err := s.findByUserId(in.UserId)
+	if err != nil {
+		s.log.Named("Join").Error("findByUserId prevGroup: ", zap.Error(err))
+		return nil, err
 	}
 
 	if in.UserId == prevGroup.LeaderID.String() && len(prevGroup.Members) > 1 {
@@ -276,7 +326,7 @@ func (s *serviceImpl) Join(_ context.Context, in *proto.JoinGroupRequest) (*prot
 		return nil, status.Error(codes.PermissionDenied, "You are the group leader, so you must kick all other members before joining another group")
 	}
 
-	err := s.repo.WithTransaction(func(tx *gorm.DB) error {
+	err = s.repo.WithTransaction(func(tx *gorm.DB) error {
 		joiningGroup := &model.Group{}
 		if err := s.repo.FindByToken(in.Token, joiningGroup); err != nil {
 			s.log.Named("Join").Error("FindByToken joiningGroup TX: ", zap.Error(err))
