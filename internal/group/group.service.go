@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/isd-sgcu/rpkm67-backend/config"
 	"github.com/isd-sgcu/rpkm67-backend/internal/cache"
 	"github.com/isd-sgcu/rpkm67-backend/internal/user"
@@ -189,7 +190,12 @@ func (s *serviceImpl) UpdateConfirm(_ context.Context, in *proto.UpdateConfirmGr
 }
 
 func (s *serviceImpl) DeleteMember(_ context.Context, in *proto.DeleteMemberGroupRequest) (*proto.DeleteMemberGroupResponse, error) {
-	group, err := s.findByUserId(in.UserId)
+	if in.LeaderId == in.UserId {
+		s.log.Named("DeleteMember").Error("User is the leader of the group", zap.String("user_id", in.UserId))
+		return nil, status.Error(codes.PermissionDenied, "You are the group leader, so you cannot delete yourself")
+	}
+
+	group, err := s.findByUserId(in.LeaderId)
 	if err != nil {
 		s.log.Named("DeleteMember").Error("findByUserId group: ", zap.Error(err))
 		return nil, err
@@ -201,20 +207,22 @@ func (s *serviceImpl) DeleteMember(_ context.Context, in *proto.DeleteMemberGrou
 	}
 
 	var found bool
+	var deletedUserId *uuid.UUID
 	for _, member := range group.Members {
 		if member.ID.String() == in.UserId {
 			found = true
+			deletedUserId = &member.ID
 			break
 		}
 	}
 	if !found {
 		s.log.Named("DeleteMember").Error("User is not in the group", zap.String("user_id", in.UserId))
-		return nil, status.Error(codes.NotFound, "requested user_id is not in the group")
+		return nil, status.Error(codes.NotFound, "user_id to be deleted is not in the group")
 	}
 
 	err = s.repo.WithTransaction(func(tx *gorm.DB) error {
 		createGroup := &model.Group{
-			LeaderID: group.LeaderID,
+			LeaderID: deletedUserId,
 		}
 
 		if err := s.repo.CreateTX(tx, createGroup); err != nil {
@@ -277,9 +285,15 @@ func (s *serviceImpl) Leave(_ context.Context, in *proto.LeaveGroupRequest) (*pr
 		return nil, status.Error(codes.PermissionDenied, "You are the only member in the group, so you cannot leave")
 	}
 
+	userId, err := uuid.Parse(in.UserId)
+	if err != nil {
+		s.log.Named("Leave").Error("Parse userId: ", zap.Error(err))
+		return nil, status.Error(codes.Internal, "failed to parse user id")
+	}
+
 	err = s.repo.WithTransaction(func(tx *gorm.DB) error {
 		createGroup := &model.Group{
-			LeaderID: group.LeaderID,
+			LeaderID: &userId,
 		}
 
 		if err := s.repo.CreateTX(tx, createGroup); err != nil {
