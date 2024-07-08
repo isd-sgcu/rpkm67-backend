@@ -24,5 +24,5 @@ func (r *repositoryImpl) FindOne(id string, user *model.User) error {
 }
 
 func (r *repositoryImpl) AssignGroupTX(tx *gorm.DB, id string, groupID *uuid.UUID) error {
-	return r.Db.Model(&model.User{}).Where("id = ?", id).Update("group_id", groupID).Error
+	return tx.Model(&model.User{}).Where("id = ?", id).Update("group_id", groupID).Error
 }

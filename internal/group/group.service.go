@@ -59,9 +59,24 @@ func (s *serviceImpl) findByUserId(userId string) (*model.Group, error) {
 		return cachedGroup, nil
 	}
 
+	group, err := s.findByUserIdNoCache(userId)
+	if err != nil {
+		s.log.Named("findByUserId").Error("findByUserIdNoCache group: ", zap.Error(err))
+		return nil, err
+	}
+
+	if err := s.cache.SetValue(cacheKey, group, s.conf.CacheTTL); err != nil {
+		s.log.Named("findByUserId").Error("SetValue: ", zap.Error(err))
+		return nil, status.Error(codes.Internal, "failed to cache group")
+	}
+
+	return group, nil
+}
+
+func (s *serviceImpl) findByUserIdNoCache(userId string) (*model.Group, error) {
 	user := &model.User{}
 	if err := s.userRepo.FindOne(userId, user); err != nil {
-		s.log.Named("findByUserId").Error("FindOne user: ", zap.Error(err))
+		s.log.Named("findByUserIdNoCache").Error("FindOne user: ", zap.Error(err))
 		return nil, status.Error(codes.Internal, "failed to find user")
 	}
 
@@ -72,17 +87,12 @@ func (s *serviceImpl) findByUserId(userId string) (*model.Group, error) {
 			}
 
 			if err := s.repo.CreateTX(tx, createGroup); err != nil {
-				s.log.Named("findByUserId").Error("CreateTX: ", zap.Error(err))
+				s.log.Named("findByUserIdNoCache").Error("CreateTX: ", zap.Error(err))
 				return fmt.Errorf("failed to create new group: %w", err)
 			}
 
-			if err := s.repo.MoveUserToNewGroupTX(tx, userId, &createGroup.ID); err != nil {
-				s.log.Named("findByUserId").Error("MoveUserToNewGroupTX: ", zap.Error(err))
-				return fmt.Errorf("failed to delete member from group: %w", err)
-			}
-
 			if err := s.userRepo.AssignGroupTX(tx, user.ID.String(), &createGroup.ID); err != nil {
-				s.log.Named("findByUserId").Error("AssignGroupTX: ", zap.Error(err))
+				s.log.Named("findByUserIdNoCache").Error("AssignGroupTX: ", zap.Error(err))
 				return fmt.Errorf("failed to assign user to group: %w", err)
 			}
 
@@ -90,20 +100,15 @@ func (s *serviceImpl) findByUserId(userId string) (*model.Group, error) {
 		})
 
 		if err != nil {
-			s.log.Named("findByUserId").Error("WithTransaction: ", zap.Error(err))
+			s.log.Named("findByUserIdNoCache").Error("WithTransaction: ", zap.Error(err))
 			return nil, status.Error(codes.Internal, fmt.Sprintf("transaction failed: %s", err.Error()))
 		}
 	}
 
 	group := &model.Group{}
 	if err := s.repo.FindOne(user.GroupID.String(), group); err != nil {
-		s.log.Named("findByUserId").Error("FindByUserId: ", zap.Error(err))
+		s.log.Named("findByUserIdNoCache").Error("FindOne: ", zap.Error(err))
 		return nil, status.Error(codes.Internal, "failed to find group")
-	}
-
-	if err := s.cache.SetValue(cacheKey, group, s.conf.CacheTTL); err != nil {
-		s.log.Named("findByUserId").Error("SetValue: ", zap.Error(err))
-		return nil, status.Error(codes.Internal, "failed to cache group")
 	}
 
 	return group, nil
@@ -174,7 +179,7 @@ func (s *serviceImpl) UpdateConfirm(_ context.Context, in *proto.UpdateConfirmGr
 		return nil, status.Error(codes.Internal, "failed to update group")
 	}
 
-	if err := s.updateGroupCacheByUserId(group); err != nil {
+	if err := s.updateGroupCache(group); err != nil {
 		s.log.Named("UpdateConfirm").Error("updateGroupCacheByUserId: ", zap.Error(err))
 		return nil, status.Error(codes.Internal, "failed to update group cache")
 	}
@@ -217,9 +222,9 @@ func (s *serviceImpl) DeleteMember(_ context.Context, in *proto.DeleteMemberGrou
 			return fmt.Errorf("failed to create new group: %w", err)
 		}
 
-		if err := s.repo.MoveUserToNewGroupTX(tx, in.UserId, &createGroup.ID); err != nil {
-			s.log.Named("DeleteMember").Error("MoveUserToNewGroupTX: ", zap.Error(err))
-			return fmt.Errorf("failed to delete member from group: %w", err)
+		if err := s.userRepo.AssignGroupTX(tx, in.UserId, &createGroup.ID); err != nil {
+			s.log.Named("DeleteMember").Error("AssignGroupTX: ", zap.Error(err))
+			return fmt.Errorf("failed to assign user to new group: %w", err)
 		}
 
 		return nil
@@ -230,22 +235,22 @@ func (s *serviceImpl) DeleteMember(_ context.Context, in *proto.DeleteMemberGrou
 		return nil, status.Error(codes.Internal, fmt.Sprintf("transaction failed: %s", err.Error()))
 	}
 
-	newGroup, err := s.findByUserId(in.UserId)
+	newGroup, err := s.findByUserIdNoCache(in.UserId)
 	if err != nil {
-		s.log.Named("DeleteMember").Error("findByUserId newGroup: ", zap.Error(err))
+		s.log.Named("DeleteMember").Error("findByUserIdNoCache newGroup: ", zap.Error(err))
 		return nil, err
 	}
-	updatedGroup, err := s.findByUserId(in.LeaderId)
+	updatedGroup, err := s.findByUserIdNoCache(in.LeaderId)
 	if err != nil {
-		s.log.Named("DeleteMember").Error("findByUserId updatedGroup: ", zap.Error(err))
+		s.log.Named("DeleteMember").Error("findByUserIdNoCache updatedGroup: ", zap.Error(err))
 		return nil, err
 	}
 
-	if err := s.updateGroupCacheByUserId(newGroup); err != nil {
+	if err := s.updateGroupCache(newGroup); err != nil {
 		s.log.Named("DeleteMember").Error("updateGroupCacheByUserId: newGroup", zap.Error(err))
 		return nil, status.Error(codes.Internal, "failed to update newGroup cache")
 	}
-	if err := s.updateGroupCacheByUserId(updatedGroup); err != nil {
+	if err := s.updateGroupCache(updatedGroup); err != nil {
 		s.log.Named("DeleteMember").Error("updateGroupCacheByUserId: updatedGroup", zap.Error(err))
 		return nil, status.Error(codes.Internal, "failed to update updatedGroup cache")
 	}
@@ -267,6 +272,11 @@ func (s *serviceImpl) Leave(_ context.Context, in *proto.LeaveGroupRequest) (*pr
 		return nil, status.Error(codes.PermissionDenied, "You are the group leader, so you cannot leave")
 	}
 
+	if len(group.Members) == 1 {
+		s.log.Named("Leave").Error("Group has only one member", zap.String("user_id", in.UserId))
+		return nil, status.Error(codes.PermissionDenied, "You are the only member in the group, so you cannot leave")
+	}
+
 	err = s.repo.WithTransaction(func(tx *gorm.DB) error {
 		createGroup := &model.Group{
 			LeaderID: group.LeaderID,
@@ -277,9 +287,9 @@ func (s *serviceImpl) Leave(_ context.Context, in *proto.LeaveGroupRequest) (*pr
 			return fmt.Errorf("failed to create new group: %w", err)
 		}
 
-		if err := s.repo.MoveUserToNewGroupTX(tx, in.UserId, &createGroup.ID); err != nil {
-			s.log.Named("Leave").Error("MoveUserToNewGroupTX: ", zap.Error(err))
-			return fmt.Errorf("failed to delete member from group: %w", err)
+		if err := s.userRepo.AssignGroupTX(tx, in.UserId, &createGroup.ID); err != nil {
+			s.log.Named("Leave").Error("AssignGroupTX: ", zap.Error(err))
+			return fmt.Errorf("failed to assign user to new group: %w", err)
 		}
 
 		return nil
@@ -290,22 +300,22 @@ func (s *serviceImpl) Leave(_ context.Context, in *proto.LeaveGroupRequest) (*pr
 		return nil, status.Error(codes.Internal, fmt.Sprintf("transaction failed: %s", err.Error()))
 	}
 
-	newGroup, err := s.findByUserId(in.UserId)
+	newGroup, err := s.findByUserIdNoCache(in.UserId)
 	if err != nil {
-		s.log.Named("Leave").Error("findByUserId group: ", zap.Error(err))
+		s.log.Named("Leave").Error("findByUserIdNoCache group: ", zap.Error(err))
 		return nil, err
 	}
-	updatedGroup, err := s.findByUserId(group.LeaderID.String())
+	updatedGroup, err := s.findByUserIdNoCache(group.LeaderID.String())
 	if err != nil {
-		s.log.Named("Leave").Error("findByUserId group: ", zap.Error(err))
+		s.log.Named("Leave").Error("findByUserIdNoCache group: ", zap.Error(err))
 		return nil, err
 	}
 
-	if err := s.updateGroupCacheByUserId(newGroup); err != nil {
+	if err := s.updateGroupCache(newGroup); err != nil {
 		s.log.Named("Leave").Error("updateGroupCacheByUserId: newGroup", zap.Error(err))
 		return nil, status.Error(codes.Internal, "failed to update newGroup cache")
 	}
-	if err := s.updateGroupCacheByUserId(updatedGroup); err != nil {
+	if err := s.updateGroupCache(updatedGroup); err != nil {
 		s.log.Named("Leave").Error("updateGroupCacheByUserId: updatedGroup", zap.Error(err))
 		return nil, status.Error(codes.Internal, "failed to update updatedGroup cache")
 	}
@@ -316,17 +326,6 @@ func (s *serviceImpl) Leave(_ context.Context, in *proto.LeaveGroupRequest) (*pr
 }
 
 func (s *serviceImpl) Join(_ context.Context, in *proto.JoinGroupRequest) (*proto.JoinGroupResponse, error) {
-	prevGroup, err := s.findByUserId(in.UserId)
-	if err != nil {
-		s.log.Named("Join").Error("findByUserId prevGroup: ", zap.Error(err))
-		return nil, err
-	}
-
-	if in.UserId == prevGroup.LeaderID.String() && len(prevGroup.Members) > 1 {
-		s.log.Named("Join").Error("User is the leader of a group with >1 members", zap.String("user_id", in.UserId))
-		return nil, status.Error(codes.PermissionDenied, "You are the group leader, so you must kick all other members before joining another group")
-	}
-
 	joiningGroup := &model.Group{}
 	if err := s.repo.FindByToken(in.Token, joiningGroup); err != nil {
 		s.log.Named("Join").Error("FindByToken joiningGroup TX: ", zap.Error(err))
@@ -343,6 +342,12 @@ func (s *serviceImpl) Join(_ context.Context, in *proto.JoinGroupRequest) (*prot
 	if len(joiningGroup.Members) >= s.conf.Capacity {
 		s.log.Named("Join").Error("Group is full", zap.String("token", in.Token))
 		return nil, status.Error(codes.PermissionDenied, "group is full")
+	}
+
+	prevGroup, err := s.findByUserId(in.UserId)
+	if err != nil {
+		s.log.Named("Join").Error("findByUserId prevGroup: ", zap.Error(err))
+		return nil, err
 	}
 
 	err = s.repo.WithTransaction(func(tx *gorm.DB) error {
@@ -368,7 +373,9 @@ func (s *serviceImpl) Join(_ context.Context, in *proto.JoinGroupRequest) (*prot
 		return nil, status.Error(codes.Internal, fmt.Sprintf("transaction failed: %s", err.Error()))
 	}
 
-	if err := s.updateGroupCacheByUserId(joiningGroup); err != nil {
+	joiningGroup.Members = append(joiningGroup.Members, prevGroup.Members[0])
+
+	if err := s.updateGroupCache(joiningGroup); err != nil {
 		s.log.Named("Join").Error("updateGroupCacheByUserId: joiningGroup", zap.Error(err))
 		return nil, status.Error(codes.Internal, "failed to update joiningGroup cache")
 	}
@@ -378,11 +385,15 @@ func (s *serviceImpl) Join(_ context.Context, in *proto.JoinGroupRequest) (*prot
 	return &proto.JoinGroupResponse{Group: groupRPC}, nil
 }
 
-func (s *serviceImpl) updateGroupCacheByUserId(group *model.Group) error {
+func (s *serviceImpl) updateGroupCache(group *model.Group) error {
 	for _, member := range group.Members {
 		if err := s.cache.SetValue(groupByUserIdKey(member.ID.String()), group, s.conf.CacheTTL); err != nil {
-			return fmt.Errorf("failed to update group cache: %w", err)
+			return fmt.Errorf("failed to update group cache by user id: %w", err)
 		}
+	}
+
+	if err := s.cache.SetValue(groupByTokenKey(group.Token), group, s.conf.CacheTTL); err != nil {
+		return fmt.Errorf("failed to update group cache by token: %w", err)
 	}
 
 	return nil
