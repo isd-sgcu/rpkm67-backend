@@ -327,16 +327,29 @@ func (s *serviceImpl) Join(_ context.Context, in *proto.JoinGroupRequest) (*prot
 		return nil, status.Error(codes.PermissionDenied, "You are the group leader, so you must kick all other members before joining another group")
 	}
 
-	err = s.repo.WithTransaction(func(tx *gorm.DB) error {
-		joiningGroup := &model.Group{}
-		if err := s.repo.FindByToken(in.Token, joiningGroup); err != nil {
-			s.log.Named("Join").Error("FindByToken joiningGroup TX: ", zap.Error(err))
-			return fmt.Errorf("failed to find group by token: %w", err)
-		}
+	joiningGroup := &model.Group{}
+	if err := s.repo.FindByToken(in.Token, joiningGroup); err != nil {
+		s.log.Named("Join").Error("FindByToken joiningGroup TX: ", zap.Error(err))
+		return nil, status.Error(codes.Internal, "failed to find joining group by token")
+	}
 
-		if err := s.repo.JoinGroupTX(tx, in.UserId, &joiningGroup.ID); err != nil {
-			s.log.Named("Join").Error("JoinGroupTX: ", zap.Error(err))
-			return fmt.Errorf("failed to join group: %w", err)
+	for _, member := range joiningGroup.Members {
+		if member.ID.String() == in.UserId {
+			s.log.Named("Join").Error("User is already in the group", zap.String("user_id", in.UserId))
+			return nil, status.Error(codes.PermissionDenied, "user is already in the group")
+		}
+	}
+
+	if len(joiningGroup.Members) >= s.conf.Capacity {
+		s.log.Named("Join").Error("Group is full", zap.String("token", in.Token))
+		return nil, status.Error(codes.PermissionDenied, "group is full")
+	}
+
+	err = s.repo.WithTransaction(func(tx *gorm.DB) error {
+
+		if err := s.userRepo.AssignGroupTX(tx, in.UserId, &joiningGroup.ID); err != nil {
+			s.log.Named("findByUserId").Error("AssignGroupTX: ", zap.Error(err))
+			return fmt.Errorf("failed to assign user to group: %w", err)
 		}
 
 		if in.UserId == prevGroup.LeaderID.String() && len(prevGroup.Members) == 1 {
@@ -353,12 +366,6 @@ func (s *serviceImpl) Join(_ context.Context, in *proto.JoinGroupRequest) (*prot
 	if err != nil {
 		s.log.Named("Join").Error("WithTransaction: ", zap.Error(err))
 		return nil, status.Error(codes.Internal, fmt.Sprintf("transaction failed: %s", err.Error()))
-	}
-
-	joiningGroup := &model.Group{}
-	if err := s.repo.FindByToken(in.Token, joiningGroup); err != nil {
-		s.log.Named("Join").Error("FindByToken joiningGroup: ", zap.Error(err))
-		return nil, status.Error(codes.Internal, "failed to find updated group")
 	}
 
 	if err := s.updateGroupCacheByUserId(joiningGroup); err != nil {

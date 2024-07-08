@@ -15,7 +15,6 @@ type Repository interface {
 	UpdateConfirm(id string, group *model.Group) error
 	CreateTX(tx *gorm.DB, group *model.Group) error
 	MoveUserToNewGroupTX(tx *gorm.DB, userId string, groupId *uuid.UUID) error
-	JoinGroupTX(tx *gorm.DB, userId string, groupId *uuid.UUID) error
 	DeleteGroupTX(tx *gorm.DB, groupId *uuid.UUID) error
 }
 
@@ -79,22 +78,6 @@ func (r *repositoryImpl) MoveUserToNewGroupTX(tx *gorm.DB, userId string, groupI
 	updateMap := map[string]interface{}{
 		"group_id": groupId,
 	}
-	result := tx.Model(&model.User{}).Where("id = ?", userId).Updates(updateMap)
-	if result.Error != nil {
-		return result.Error
-	}
-	if result.RowsAffected == 0 {
-		return errors.New("no user found with the given ID")
-	}
-
-	return nil
-}
-
-func (r *repositoryImpl) JoinGroupTX(tx *gorm.DB, userId string, groupId *uuid.UUID) error {
-	updateMap := map[string]interface{}{
-		"group_id": groupId,
-	}
-
 	result := tx.Model(&model.User{}).Where("id = ?", userId).Updates(updateMap)
 	if result.Error != nil {
 		return result.Error
