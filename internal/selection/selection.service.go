@@ -83,7 +83,6 @@ func (s *serviceImpl) Create(ctx context.Context, in *proto.CreateSelectionReque
 
 	res := proto.CreateSelectionResponse{
 		Selection: &proto.Selection{
-			Id:      "",
 			GroupId: in.GroupId,
 			BaanId:  in.BaanId,
 			Order:   in.Order,
@@ -109,7 +108,6 @@ func (s *serviceImpl) FindByGroupId(ctx context.Context, in *proto.FindByGroupId
 	selectionRPC := []*proto.Selection{}
 	for _, m := range *selection {
 		ss := &proto.Selection{
-			Id:      "",
 			GroupId: m.GroupID.String(),
 			BaanId:  m.Baan,
 			Order:   int32(m.Order),
@@ -185,28 +183,28 @@ func (s *serviceImpl) CountByBaanId(ctx context.Context, in *proto.CountByBaanId
 func (s *serviceImpl) Update(ctx context.Context, in *proto.UpdateSelectionRequest) (*proto.UpdateSelectionResponse, error) {
 	oldSelections := &[]model.Selection{}
 
-	err := s.repo.FindByGroupId(in.Selection.GroupId, oldSelections)
+	err := s.repo.FindByGroupId(in.GroupId, oldSelections)
 	if err != nil {
-		s.log.Named("Update").Error(fmt.Sprintf("FindByGroupId: group_id=%s", in.Selection.GroupId), zap.Error(err))
+		s.log.Named("Update").Error(fmt.Sprintf("FindByGroupId: group_id=%s", in.GroupId), zap.Error(err))
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	groupUUID, err := uuid.Parse(in.Selection.GroupId)
+	groupUUID, err := uuid.Parse(in.GroupId)
 	if err != nil {
-		s.log.Named("Update").Error(fmt.Sprintf("Parse group id: %s", in.Selection.GroupId), zap.Error(err))
+		s.log.Named("Update").Error(fmt.Sprintf("Parse group id: %s", in.GroupId), zap.Error(err))
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	//Order must be in range 1-5
-	if in.Selection.Order < 1 || in.Selection.Order > 5 {
-		s.log.Named("Update").Error(fmt.Sprintf("Failed to update selection: order=%d", in.Selection.Order), zap.Error(err))
+	if in.Order < 1 || in.Order > 5 {
+		s.log.Named("Update").Error(fmt.Sprintf("Failed to update selection: order=%d", in.Order), zap.Error(err))
 		return nil, status.Error(codes.Internal, "Order must be in range 1-5")
 	}
 
 	newSelection := model.Selection{
 		GroupID: &groupUUID,
-		Baan:    in.Selection.BaanId,
-		Order:   int(in.Selection.Order),
+		Baan:    in.BaanId,
+		Order:   int(in.Order),
 	}
 
 	// Check if the new Baan exists in oldSelections
@@ -230,22 +228,26 @@ func (s *serviceImpl) Update(ctx context.Context, in *proto.UpdateSelectionReque
 	} else if baanExists && !orderExists {
 		updateErr = s.repo.UpdateExistBaanNewOrder(&newSelection)
 	} else {
-		s.log.Named("Update").Error(fmt.Sprintf("Invalid update scenario: group_id=%s, baan_id=%s", in.Selection.GroupId, in.Selection.BaanId))
+		s.log.Named("Update").Error(fmt.Sprintf("Invalid update scenario: group_id=%s, baan_id=%s", in.GroupId, in.BaanId))
 		return nil, status.Error(codes.Internal, "Invalid update scenario")
 	}
 
 	if updateErr != nil {
-		s.log.Named("Update").Error(fmt.Sprintf("Update: group_id=%s, baan_id=%s", in.Selection.GroupId, in.Selection.BaanId), zap.Error(updateErr))
+		s.log.Named("Update").Error(fmt.Sprintf("Update: group_id=%s, baan_id=%s", in.GroupId, in.BaanId), zap.Error(updateErr))
 		return nil, status.Error(codes.Internal, updateErr.Error())
 	}
 
 	res := proto.UpdateSelectionResponse{
-		Success: true,
+		Selection: &proto.Selection{
+			GroupId: in.GroupId,
+			BaanId:  in.BaanId,
+			Order:   in.Order,
+		},
 	}
 
 	s.log.Info("Selection updated",
-		zap.String("group_id", in.Selection.GroupId),
-		zap.String("baan_id", in.Selection.BaanId))
+		zap.String("group_id", in.GroupId),
+		zap.String("baan_id", in.BaanId))
 
 	return &res, nil
 }
