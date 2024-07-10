@@ -63,7 +63,7 @@ func main() {
 	groupSvc := group.NewService(groupRepo, userRepo, cacheRepo, &conf.Group, logger.Named("groupSvc"))
 
 	selectionRepo := selection.NewRepository(db)
-	selectionSvc := selection.NewService(selectionRepo, cacheRepo, logger.Named("selectionSvc"))
+	selectionSvc := selection.NewService(selectionRepo, cacheRepo, &conf.Selection, logger.Named("selectionSvc"))
 
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%v", conf.App.Port))
 	if err != nil {

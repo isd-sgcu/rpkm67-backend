@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/isd-sgcu/rpkm67-backend/config"
 	"github.com/isd-sgcu/rpkm67-backend/internal/cache"
 	proto "github.com/isd-sgcu/rpkm67-go-proto/rpkm67/backend/selection/v1"
 	"github.com/isd-sgcu/rpkm67-model/model"
@@ -21,13 +22,15 @@ type serviceImpl struct {
 	proto.UnimplementedSelectionServiceServer
 	repo  Repository
 	cache cache.Repository
+	conf  *config.SelectionConfig
 	log   *zap.Logger
 }
 
-func NewService(repo Repository, cache cache.Repository, log *zap.Logger) Service {
+func NewService(repo Repository, cache cache.Repository, conf *config.SelectionConfig, log *zap.Logger) Service {
 	return &serviceImpl{
 		repo:  repo,
 		cache: cache,
+		conf:  conf,
 		log:   log,
 	}
 }
@@ -170,7 +173,7 @@ func (s *serviceImpl) CountByBaanId(ctx context.Context, in *proto.CountByBaanId
 		BaanCounts: countRPC,
 	}
 
-	if err := s.cache.SetValue(cachedKey, &res, 3600); err != nil {
+	if err := s.cache.SetValue(cachedKey, &res, s.conf.CacheTTL); err != nil {
 		s.log.Named("CountByBaanId").Warn("Failed to set count group by baan id in cache", zap.Error(err))
 	}
 

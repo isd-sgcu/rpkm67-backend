@@ -27,6 +27,10 @@ type GroupConfig struct {
 	CacheTTL int
 }
 
+type SelectionConfig struct {
+	CacheTTL int
+}
+
 type PinConfig struct {
 	WorkshopCode  string
 	WorkshopCount int
@@ -34,11 +38,12 @@ type PinConfig struct {
 	LandmarkCount int
 }
 type Config struct {
-	App   AppConfig
-	Db    DbConfig
-	Redis RedisConfig
-	Group GroupConfig
-	Pin   PinConfig
+	App       AppConfig
+	Db        DbConfig
+	Redis     RedisConfig
+	Group     GroupConfig
+	Selection SelectionConfig
+	Pin       PinConfig
 }
 
 func LoadConfig() (*Config, error) {
@@ -69,15 +74,6 @@ func LoadConfig() (*Config, error) {
 		Password: os.Getenv("REDIS_PASSWORD"),
 	}
 
-	workshopCount, err := strconv.ParseInt(os.Getenv("PIN_WORKSHOP_COUNT"), 10, 64)
-	if err != nil {
-		return nil, err
-	}
-	landmarkCount, err := strconv.ParseInt(os.Getenv("PIN_LANDMARK_COUNT"), 10, 64)
-	if err != nil {
-		return nil, err
-	}
-
 	groupCapacity, err := strconv.ParseInt(os.Getenv("GROUP_CAPACITY"), 10, 64)
 	if err != nil {
 		return nil, err
@@ -86,12 +82,27 @@ func LoadConfig() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	groupConfig := GroupConfig{
 		Capacity: int(groupCapacity),
 		CacheTTL: int(groupCacheTTL),
 	}
 
+	selectionCacheTTL, err := strconv.ParseInt(os.Getenv("SELECTION_CACHE_TTL"), 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	selectionConfig := SelectionConfig{
+		CacheTTL: int(selectionCacheTTL),
+	}
+
+	workshopCount, err := strconv.ParseInt(os.Getenv("PIN_WORKSHOP_COUNT"), 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	landmarkCount, err := strconv.ParseInt(os.Getenv("PIN_LANDMARK_COUNT"), 10, 64)
+	if err != nil {
+		return nil, err
+	}
 	pinConfig := PinConfig{
 		WorkshopCode:  os.Getenv("PIN_WORKSHOP_CODE"),
 		WorkshopCount: int(workshopCount),
@@ -100,11 +111,12 @@ func LoadConfig() (*Config, error) {
 	}
 
 	return &Config{
-		App:   appConfig,
-		Db:    dbConfig,
-		Redis: redisConfig,
-		Group: groupConfig,
-		Pin:   pinConfig,
+		App:       appConfig,
+		Db:        dbConfig,
+		Redis:     redisConfig,
+		Group:     groupConfig,
+		Selection: selectionConfig,
+		Pin:       pinConfig,
 	}, nil
 }
 
