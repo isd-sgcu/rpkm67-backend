@@ -1,18 +1,17 @@
-name: 'Pull request/Push: Run unit test'
+name: Unit Tests
 
 on:
+  workflow_dispatch:
   pull_request:
     branches:
-      - dev
-      - master
       - main
-      - beta
+      - dev
   push:
     branches:
-      - dev
-      - master
       - main
-      - beta
+      - dev
+    tags:
+      - v*
 
 jobs:
   build:
