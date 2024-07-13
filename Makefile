@@ -16,10 +16,6 @@ docker:
 	docker rm -v -f $$(docker ps -qa) || echo "No containers found. Skipping removal."
 	docker-compose up
 
-docker-qa:
-	docker rm -v -f $$(docker ps -qa) || echo "No containers found. Skipping removal."
-	docker-compose -f docker-compose.qa.yml up
-
 server:
 	go run cmd/main.go
 
