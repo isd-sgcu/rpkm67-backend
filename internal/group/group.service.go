@@ -116,13 +116,6 @@ func (s *serviceImpl) findByUserIdNoCache(userId string) (*model.Group, error) {
 }
 
 func (s *serviceImpl) FindByToken(_ context.Context, in *proto.FindByTokenGroupRequest) (*proto.FindByTokenGroupResponse, error) {
-	cacheKey := groupByTokenKey(in.Token)
-	var cachedGroup proto.FindByTokenGroupResponse
-	if err := s.cache.GetValue(cacheKey, &cachedGroup); err == nil {
-		s.log.Named("FindByToken").Info("GetValue: Group found in cache", zap.String("token", in.Token))
-		return &cachedGroup, nil
-	}
-
 	group := &model.Group{}
 	if err := s.repo.FindByToken(in.Token, group); err != nil {
 		s.log.Named("FindByToken").Error("FindByToken: ", zap.Error(err))
@@ -147,11 +140,6 @@ func (s *serviceImpl) FindByToken(_ context.Context, in *proto.FindByTokenGroupR
 		Id:     group.ID.String(),
 		Token:  group.Token,
 		Leader: leaderInfo,
-	}
-
-	if err := s.cache.SetValue(cacheKey, &res, s.conf.CacheTTL); err != nil {
-		s.log.Named("FindByToken").Error("SetValue: ", zap.Error(err))
-		return nil, status.Error(codes.Internal, "failed to cache group")
 	}
 
 	return &res, nil
