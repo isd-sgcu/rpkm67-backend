@@ -97,10 +97,10 @@ func (s *serviceImpl) addNewScore(stamp *model.Stamp, idx int) {
 		stamp.PointB += 2
 		stamp.PointC++
 		stamp.PointD++
-	} else if idx >= 4 && idx <= 6 {
+	} else if idx >= 5 && idx <= 7 {
 		stamp.PointA++
 		stamp.PointD++
-	} else if idx == 7 {
+	} else if idx == 8 {
 		stamp.PointA++
 	} else {
 		stamp.PointA += 2
