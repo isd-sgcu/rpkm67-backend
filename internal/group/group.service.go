@@ -189,6 +189,11 @@ func (s *serviceImpl) DeleteMember(_ context.Context, in *proto.DeleteMemberGrou
 		return nil, err
 	}
 
+	if group.IsConfirmed {
+		s.log.Named("DeleteMember").Error("Group is confirmed", zap.String("user_id", in.UserId))
+		return nil, status.Error(codes.PermissionDenied, "Group is confirmed, so you cannot delete member")
+	}
+
 	if in.LeaderId != group.LeaderID.String() {
 		s.log.Named("DeleteMember").Error("Requested leader_id is not leader of this group", zap.String("leader_id", in.LeaderId))
 		return nil, status.Error(codes.PermissionDenied, "requested leader_id is not leader of this group")
