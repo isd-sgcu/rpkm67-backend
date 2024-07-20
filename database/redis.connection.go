@@ -17,7 +17,7 @@ func InitRedis(conf *config.RedisConfig) (*redis.Client, error) {
 	})
 
 	if cache == nil {
-		return nil, errors.New("Failed to connect to redis server")
+		return nil, errors.New("failed to connect to redis server")
 	}
 
 	return cache, nil
