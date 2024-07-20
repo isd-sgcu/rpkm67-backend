@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/isd-sgcu/rpkm67-backend/config"
 	"github.com/isd-sgcu/rpkm67-backend/internal/cache"
+	"github.com/isd-sgcu/rpkm67-backend/internal/group"
 	proto "github.com/isd-sgcu/rpkm67-go-proto/rpkm67/backend/selection/v1"
 	"github.com/isd-sgcu/rpkm67-model/model"
 	"go.uber.org/zap"
@@ -20,22 +21,34 @@ type Service interface {
 
 type serviceImpl struct {
 	proto.UnimplementedSelectionServiceServer
-	repo  Repository
-	cache cache.Repository
-	conf  *config.SelectionConfig
-	log   *zap.Logger
+	repo      Repository
+	groupRepo group.Repository
+	cache     cache.Repository
+	conf      *config.SelectionConfig
+	log       *zap.Logger
 }
 
-func NewService(repo Repository, cache cache.Repository, conf *config.SelectionConfig, log *zap.Logger) Service {
+func NewService(repo Repository, groupRepo group.Repository, cache cache.Repository, conf *config.SelectionConfig, log *zap.Logger) Service {
 	return &serviceImpl{
-		repo:  repo,
-		cache: cache,
-		conf:  conf,
-		log:   log,
+		repo:      repo,
+		groupRepo: groupRepo,
+		cache:     cache,
+		conf:      conf,
+		log:       log,
 	}
 }
 
 func (s *serviceImpl) Create(ctx context.Context, in *proto.CreateSelectionRequest) (*proto.CreateSelectionResponse, error) {
+	isConfirmed, err := s.isGroupConfirmed(in.GroupId)
+	if err != nil {
+		s.log.Named("Create").Error(fmt.Sprintf("isGroupConfirmed: group_id=%s", in.GroupId), zap.Error(err))
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	if isConfirmed {
+		s.log.Named("Create").Error(fmt.Sprintf("Failed to create selection: group_id=%s", in.GroupId), zap.Error(err))
+		return nil, status.Error(codes.InvalidArgument, "Group is confirmed")
+	}
+
 	groupUUID, err := uuid.Parse(in.GroupId)
 	if err != nil {
 		s.log.Named("Create").Error(fmt.Sprintf("Parse group id: %s", in.GroupId), zap.Error(err))
@@ -130,7 +143,17 @@ func (s *serviceImpl) FindByGroupId(ctx context.Context, in *proto.FindByGroupId
 }
 
 func (s *serviceImpl) Delete(ctx context.Context, in *proto.DeleteSelectionRequest) (*proto.DeleteSelectionResponse, error) {
-	err := s.repo.Delete(in.GroupId, in.BaanId)
+	isConfirmed, err := s.isGroupConfirmed(in.GroupId)
+	if err != nil {
+		s.log.Named("Create").Error(fmt.Sprintf("isGroupConfirmed: group_id=%s", in.GroupId), zap.Error(err))
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	if isConfirmed {
+		s.log.Named("Create").Error(fmt.Sprintf("Failed to create selection: group_id=%s", in.GroupId), zap.Error(err))
+		return nil, status.Error(codes.InvalidArgument, "Group is confirmed")
+	}
+
+	err = s.repo.Delete(in.GroupId, in.BaanId)
 	if err != nil {
 		s.log.Named("Delete").Error(fmt.Sprintf("Delete: group_id=%s, baan_id=%s", in.GroupId, in.BaanId), zap.Error(err))
 		return nil, status.Error(codes.Internal, err.Error())
@@ -184,9 +207,19 @@ func (s *serviceImpl) CountByBaanId(ctx context.Context, in *proto.CountByBaanId
 }
 
 func (s *serviceImpl) Update(ctx context.Context, in *proto.UpdateSelectionRequest) (*proto.UpdateSelectionResponse, error) {
+	isConfirmed, err := s.isGroupConfirmed(in.GroupId)
+	if err != nil {
+		s.log.Named("Create").Error(fmt.Sprintf("isGroupConfirmed: group_id=%s", in.GroupId), zap.Error(err))
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	if isConfirmed {
+		s.log.Named("Create").Error(fmt.Sprintf("Failed to create selection: group_id=%s", in.GroupId), zap.Error(err))
+		return nil, status.Error(codes.InvalidArgument, "Group is confirmed")
+	}
+
 	oldSelections := &[]model.Selection{}
 
-	err := s.repo.FindByGroupId(in.GroupId, oldSelections)
+	err = s.repo.FindByGroupId(in.GroupId, oldSelections)
 	if err != nil {
 		s.log.Named("Update").Error(fmt.Sprintf("FindByGroupId: group_id=%s", in.GroupId), zap.Error(err))
 		return nil, status.Error(codes.Internal, err.Error())
@@ -253,4 +286,14 @@ func (s *serviceImpl) Update(ctx context.Context, in *proto.UpdateSelectionReque
 		zap.String("baan_id", in.BaanId))
 
 	return &res, nil
+}
+
+func (s *serviceImpl) isGroupConfirmed(groupID string) (bool, error) {
+	group := &model.Group{}
+	if err := s.groupRepo.FindOne(groupID, group); err != nil {
+		s.log.Named("isGroupConfirmed").Error(fmt.Sprintf("FindOne: group_id=%s", groupID), zap.Error(err))
+		return false, err
+	}
+
+	return group.IsConfirmed, nil
 }
