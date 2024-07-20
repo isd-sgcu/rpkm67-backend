@@ -66,7 +66,7 @@ func main() {
 	groupSvc := group.NewService(groupRepo, userRepo, cacheRepo, &conf.Group, logger.Named("groupSvc"))
 
 	selectionRepo := selection.NewRepository(db)
-	selectionSvc := selection.NewService(selectionRepo, cacheRepo, &conf.Selection, logger.Named("selectionSvc"))
+	selectionSvc := selection.NewService(selectionRepo, groupRepo, cacheRepo, &conf.Selection, logger.Named("selectionSvc"))
 
 	countRepo := count.NewRepository(db)
 	countSvc := count.NewService(countRepo, logger.Named("countSvc"))
