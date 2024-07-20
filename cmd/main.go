@@ -14,16 +14,19 @@ import (
 	"github.com/isd-sgcu/rpkm67-backend/constant"
 	"github.com/isd-sgcu/rpkm67-backend/database"
 	"github.com/isd-sgcu/rpkm67-backend/internal/cache"
+	"github.com/isd-sgcu/rpkm67-backend/internal/count"
 	"github.com/isd-sgcu/rpkm67-backend/internal/group"
 	"github.com/isd-sgcu/rpkm67-backend/internal/pin"
 	"github.com/isd-sgcu/rpkm67-backend/internal/selection"
 	"github.com/isd-sgcu/rpkm67-backend/internal/stamp"
 	"github.com/isd-sgcu/rpkm67-backend/internal/user"
 	"github.com/isd-sgcu/rpkm67-backend/logger"
+	countProto "github.com/isd-sgcu/rpkm67-go-proto/rpkm67/backend/count/v1"
 	groupProto "github.com/isd-sgcu/rpkm67-go-proto/rpkm67/backend/group/v1"
 	pinProto "github.com/isd-sgcu/rpkm67-go-proto/rpkm67/backend/pin/v1"
 	selectionProto "github.com/isd-sgcu/rpkm67-go-proto/rpkm67/backend/selection/v1"
 	stampProto "github.com/isd-sgcu/rpkm67-go-proto/rpkm67/backend/stamp/v1"
+
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
@@ -65,6 +68,9 @@ func main() {
 	selectionRepo := selection.NewRepository(db)
 	selectionSvc := selection.NewService(selectionRepo, cacheRepo, &conf.Selection, logger.Named("selectionSvc"))
 
+	countRepo := count.NewRepository(db)
+	countSvc := count.NewService(countRepo, logger.Named("countSvc"))
+
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%v", conf.App.Port))
 	if err != nil {
 		panic(fmt.Sprintf("Failed to listen: %v", err))
@@ -76,6 +82,7 @@ func main() {
 	stampProto.RegisterStampServiceServer(grpcServer, stampSvc)
 	groupProto.RegisterGroupServiceServer(grpcServer, groupSvc)
 	selectionProto.RegisterSelectionServiceServer(grpcServer, selectionSvc)
+	countProto.RegisterCountServiceServer(grpcServer, countSvc)
 
 	reflection.Register(grpcServer)
 	go func() {
