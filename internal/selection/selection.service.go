@@ -46,7 +46,7 @@ func (s *serviceImpl) Create(ctx context.Context, in *proto.CreateSelectionReque
 	}
 	if isConfirmed {
 		s.log.Named("Create").Error(fmt.Sprintf("Failed to create selection: group_id=%s", in.GroupId), zap.Error(err))
-		return nil, status.Error(codes.InvalidArgument, "Group is confirmed")
+		return nil, status.Error(codes.InvalidArgument, "Group is confirmed, cannot create selection")
 	}
 
 	groupUUID, err := uuid.Parse(in.GroupId)
@@ -150,7 +150,7 @@ func (s *serviceImpl) Delete(ctx context.Context, in *proto.DeleteSelectionReque
 	}
 	if isConfirmed {
 		s.log.Named("Create").Error(fmt.Sprintf("Failed to create selection: group_id=%s", in.GroupId), zap.Error(err))
-		return nil, status.Error(codes.InvalidArgument, "Group is confirmed")
+		return nil, status.Error(codes.InvalidArgument, "Group is confirmed, cannot delete selection")
 	}
 
 	err = s.repo.Delete(in.GroupId, in.BaanId)
@@ -214,7 +214,7 @@ func (s *serviceImpl) Update(ctx context.Context, in *proto.UpdateSelectionReque
 	}
 	if isConfirmed {
 		s.log.Named("Create").Error(fmt.Sprintf("Failed to create selection: group_id=%s", in.GroupId), zap.Error(err))
-		return nil, status.Error(codes.InvalidArgument, "Group is confirmed")
+		return nil, status.Error(codes.InvalidArgument, "Group is confirmed, cannot update selection")
 	}
 
 	oldSelections := &[]model.Selection{}
