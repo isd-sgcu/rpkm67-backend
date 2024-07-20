@@ -263,6 +263,11 @@ func (s *serviceImpl) Leave(_ context.Context, in *proto.LeaveGroupRequest) (*pr
 		return nil, err
 	}
 
+	if group.IsConfirmed {
+		s.log.Named("Leave").Error("Group is confirmed", zap.String("user_id", in.UserId))
+		return nil, status.Error(codes.PermissionDenied, "Group is confirmed, so you cannot leave")
+	}
+
 	if in.UserId == group.LeaderID.String() {
 		s.log.Named("Leave").Error("User is the leader of the group", zap.String("user_id", in.UserId))
 		return nil, status.Error(codes.PermissionDenied, "You are the group leader, so you cannot leave")
@@ -328,6 +333,17 @@ func (s *serviceImpl) Leave(_ context.Context, in *proto.LeaveGroupRequest) (*pr
 }
 
 func (s *serviceImpl) Join(_ context.Context, in *proto.JoinGroupRequest) (*proto.JoinGroupResponse, error) {
+	group, err := s.findByUserId(in.UserId)
+	if err != nil {
+		s.log.Named("Join").Error("findByUserId group: ", zap.Error(err))
+		return nil, err
+	}
+
+	if group.IsConfirmed {
+		s.log.Named("Join").Error("Group is confirmed", zap.String("user_id", in.UserId))
+		return nil, status.Error(codes.PermissionDenied, "Group is confirmed, so you cannot leave to join other groups")
+	}
+
 	joiningGroup := &model.Group{}
 	if err := s.repo.FindByToken(in.Token, joiningGroup); err != nil {
 		s.log.Named("Join").Error("FindByToken joiningGroup TX: ", zap.Error(err))
