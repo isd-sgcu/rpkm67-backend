@@ -41,6 +41,7 @@ func (s *serviceImpl) Create(ctx context.Context, in *proto.CreateCountRequest) 
 
 	res := proto.CreateCountResponse{
 		Count: &proto.Count{
+			Id:   count.ID.String(),
 			Name: count.Name,
 		},
 	}
