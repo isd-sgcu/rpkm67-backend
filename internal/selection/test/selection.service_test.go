@@ -70,6 +70,46 @@ func (s *SelectionServiceTestSuite) TestCreate_Success() {
 	s.Equal(order, res.Selection.Order)
 }
 
+func (s *SelectionServiceTestSuite) TestCreate_InvalidOrder() {
+	groupID := uuid.New().String()
+	req := &proto.CreateSelectionRequest{
+		GroupId: groupID,
+		BaanId:  "baan1",
+		Order:   6,
+	}
+
+	s.mockRepo.EXPECT().FindByGroupId(groupID, gomock.Any()).Return(nil)
+
+	_, err := s.service.Create(s.ctx, req)
+
+	s.Error(err)
+	s.Equal(codes.Internal, status.Code(err))
+	s.Contains(err.Error(), "Order must be in range 1-5")
+}
+
+func (s *SelectionServiceTestSuite) TestCreate_DuplicateBaan() {
+	groupID := uuid.New().String()
+	baanID := "baan1"
+	parsedUUID := uuid.MustParse(groupID)
+	existingSelections := []model.Selection{
+		{GroupID: &parsedUUID, Baan: baanID, Order: 1},
+	}
+
+	s.mockRepo.EXPECT().FindByGroupId(groupID, gomock.Any()).SetArg(1, existingSelections).Return(nil)
+
+	req := &proto.CreateSelectionRequest{
+		GroupId: groupID,
+		BaanId:  baanID,
+		Order:   2,
+	}
+
+	_, err := s.service.Create(s.ctx, req)
+
+	s.Error(err)
+	s.Equal(codes.Internal, status.Code(err))
+	s.Contains(err.Error(), "Can not create selection with same baan")
+}
+
 func (s *SelectionServiceTestSuite) TestCreate_InvalidGroupID() {
 	req := &proto.CreateSelectionRequest{
 		GroupId: "invalid-uuid",
@@ -237,4 +277,31 @@ func (s *SelectionServiceTestSuite) TestUpdate_UpdateNewBaanExistOrderSuccess() 
 	s.Equal(groupID, res.Selection.GroupId)
 	s.Equal(baanID, res.Selection.BaanId)
 	s.Equal(order, res.Selection.Order)
+}
+
+func (s *SelectionServiceTestSuite) TestUpdate_InvalidScenario() {
+	groupID := uuid.New().String()
+	parsedUUID := uuid.MustParse(groupID)
+	baanID := "newBaan"
+	order := int32(3)
+
+	oldSelections := []model.Selection{
+		{GroupID: &parsedUUID, Baan: "baan1", Order: 1},
+		{GroupID: &parsedUUID, Baan: "baan2", Order: 2},
+	}
+
+	s.mockRepo.EXPECT().FindByGroupId(groupID, gomock.Any()).SetArg(1, oldSelections).Return(nil)
+
+	req := &proto.UpdateSelectionRequest{
+		GroupId: groupID,
+		BaanId:  baanID,
+		Order:   order,
+	}
+
+	res, err := s.service.Update(s.ctx, req)
+
+	s.Error(err)
+	s.Nil(res)
+	s.Equal(codes.Internal, status.Code(err))
+	s.Contains(err.Error(), "Invalid update scenario")
 }
