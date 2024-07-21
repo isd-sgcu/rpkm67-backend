@@ -9,6 +9,7 @@ import (
 	"github.com/isd-sgcu/rpkm67-backend/config"
 	service "github.com/isd-sgcu/rpkm67-backend/internal/selection"
 	mock_cache "github.com/isd-sgcu/rpkm67-backend/mocks/cache"
+	mock_group "github.com/isd-sgcu/rpkm67-backend/mocks/group"
 	mock_selection "github.com/isd-sgcu/rpkm67-backend/mocks/selection"
 	proto "github.com/isd-sgcu/rpkm67-go-proto/rpkm67/backend/selection/v1"
 	"github.com/isd-sgcu/rpkm67-model/model"
@@ -20,13 +21,14 @@ import (
 
 type SelectionServiceTestSuite struct {
 	suite.Suite
-	ctrl      *gomock.Controller
-	mockRepo  *mock_selection.MockRepository
-	mockCache *mock_cache.MockRepository
-	service   proto.SelectionServiceServer
-	ctx       context.Context
-	logger    *zap.Logger
-	config    *config.SelectionConfig
+	ctrl          *gomock.Controller
+	mockRepo      *mock_selection.MockRepository
+	mockCache     *mock_cache.MockRepository
+	mockGroupRepo *mock_group.MockRepository
+	service       proto.SelectionServiceServer
+	ctx           context.Context
+	logger        *zap.Logger
+	config        *config.SelectionConfig
 }
 
 func TestSelectionServiceTestSuite(t *testing.T) {
@@ -39,7 +41,8 @@ func (s *SelectionServiceTestSuite) SetupTest() {
 	s.mockCache = mock_cache.NewMockRepository(s.ctrl)
 	s.logger = zap.NewNop()
 	s.config = &config.SelectionConfig{CacheTTL: 3600}
-	s.service = service.NewService(s.mockRepo, nil, s.mockCache, s.config, s.logger)
+	s.mockGroupRepo = mock_group.NewMockRepository(s.ctrl)
+	s.service = service.NewService(s.mockRepo, s.mockGroupRepo, s.mockCache, s.config, s.logger)
 	s.ctx = context.Background()
 }
 
@@ -52,6 +55,7 @@ func (s *SelectionServiceTestSuite) TestCreate_Success() {
 	baanID := "baan1"
 	order := int32(1)
 
+	s.mockGroupRepo.EXPECT().FindOne(gomock.Any(), gomock.Any()).SetArg(1, model.Group{IsConfirmed: false}).Return(nil)
 	s.mockRepo.EXPECT().FindByGroupId(groupID, gomock.Any()).Return(nil)
 	s.mockRepo.EXPECT().Create(gomock.Any()).Return(nil)
 
@@ -78,6 +82,7 @@ func (s *SelectionServiceTestSuite) TestCreate_InvalidOrder() {
 		Order:   6,
 	}
 
+	s.mockGroupRepo.EXPECT().FindOne(gomock.Any(), gomock.Any()).SetArg(1, model.Group{IsConfirmed: false}).Return(nil)
 	s.mockRepo.EXPECT().FindByGroupId(groupID, gomock.Any()).Return(nil)
 
 	_, err := s.service.Create(s.ctx, req)
@@ -95,6 +100,7 @@ func (s *SelectionServiceTestSuite) TestCreate_DuplicateBaan() {
 		{GroupID: &parsedUUID, Baan: baanID, Order: 1},
 	}
 
+	s.mockGroupRepo.EXPECT().FindOne(gomock.Any(), gomock.Any()).SetArg(1, model.Group{IsConfirmed: false}).Return(nil)
 	s.mockRepo.EXPECT().FindByGroupId(groupID, gomock.Any()).SetArg(1, existingSelections).Return(nil)
 
 	req := &proto.CreateSelectionRequest{
@@ -117,6 +123,7 @@ func (s *SelectionServiceTestSuite) TestCreate_InvalidGroupID() {
 		Order:   1,
 	}
 
+	s.mockGroupRepo.EXPECT().FindOne(gomock.Any(), gomock.Any()).SetArg(1, model.Group{IsConfirmed: false}).Return(nil)
 	_, err := s.service.Create(s.ctx, req)
 
 	s.Error(err)
@@ -148,6 +155,7 @@ func (s *SelectionServiceTestSuite) TestDelete_Success() {
 	groupID := uuid.New().String()
 	baanID := "baan1"
 
+	s.mockGroupRepo.EXPECT().FindOne(gomock.Any(), gomock.Any()).SetArg(1, model.Group{IsConfirmed: false}).Return(nil)
 	s.mockRepo.EXPECT().Delete(groupID, baanID).Return(nil)
 
 	req := &proto.DeleteSelectionRequest{GroupId: groupID, BaanId: baanID}
@@ -204,6 +212,7 @@ func (s *SelectionServiceTestSuite) TestUpdate_UpdateExistBaanNewOrderSuccess() 
 		{GroupID: &parsedUUID, Baan: baanID, Order: 1},
 	}
 
+	s.mockGroupRepo.EXPECT().FindOne(gomock.Any(), gomock.Any()).SetArg(1, model.Group{IsConfirmed: false}).Return(nil)
 	s.mockRepo.EXPECT().FindByGroupId(groupID, gomock.Any()).SetArg(1, oldSelections).Return(nil)
 	s.mockRepo.EXPECT().UpdateExistBaanNewOrder(gomock.Any()).Return(nil)
 
@@ -233,6 +242,7 @@ func (s *SelectionServiceTestSuite) TestUpdate_UpdateExistBaanExistOrderSuccess(
 		{GroupID: &parsedUUID, Baan: "baan2", Order: int(order)},
 	}
 
+	s.mockGroupRepo.EXPECT().FindOne(gomock.Any(), gomock.Any()).SetArg(1, model.Group{IsConfirmed: false}).Return(nil)
 	s.mockRepo.EXPECT().FindByGroupId(groupID, gomock.Any()).SetArg(1, oldSelections).Return(nil)
 	s.mockRepo.EXPECT().UpdateExistBaanExistOrder(gomock.Any()).Return(nil)
 
@@ -261,6 +271,7 @@ func (s *SelectionServiceTestSuite) TestUpdate_UpdateNewBaanExistOrderSuccess() 
 		{GroupID: &parsedUUID, Baan: "baan2", Order: int(order)},
 	}
 
+	s.mockGroupRepo.EXPECT().FindOne(gomock.Any(), gomock.Any()).SetArg(1, model.Group{IsConfirmed: false}).Return(nil)
 	s.mockRepo.EXPECT().FindByGroupId(groupID, gomock.Any()).SetArg(1, oldSelections).Return(nil)
 	s.mockRepo.EXPECT().UpdateNewBaanExistOrder(gomock.Any()).Return(nil)
 
@@ -290,6 +301,7 @@ func (s *SelectionServiceTestSuite) TestUpdate_InvalidScenario() {
 		{GroupID: &parsedUUID, Baan: "baan2", Order: 2},
 	}
 
+	s.mockGroupRepo.EXPECT().FindOne(gomock.Any(), gomock.Any()).SetArg(1, model.Group{IsConfirmed: false}).Return(nil)
 	s.mockRepo.EXPECT().FindByGroupId(groupID, gomock.Any()).SetArg(1, oldSelections).Return(nil)
 
 	req := &proto.UpdateSelectionRequest{
