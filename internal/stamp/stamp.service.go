@@ -53,12 +53,23 @@ func (s *serviceImpl) StampByUserId(_ context.Context, in *proto.StampByUserIdRe
 
 	actIdx, ok := s.activityIdToIdx[in.ActivityId]
 	if !ok {
-		return nil, status.Error(codes.Internal, errors.New("Invalid Activity ID").Error())
+		return nil, status.Error(codes.Internal, errors.New("invalid Activity ID").Error())
 	}
 
 	tempStrStamp := []byte(stamp.Stamp)
 	if tempStrStamp[actIdx] == '1' {
-		return nil, status.Error(codes.Internal, errors.New("Already stamped").Error())
+		return nil, status.Error(codes.Internal, errors.New("already stamped").Error())
+	}
+
+	if actIdx >= 9 {
+		ans := &model.Answer{
+			ActivityID: in.ActivityId,
+			Text:       in.Answer,
+		}
+		if err := s.repo.CreateAnswer(ans); err != nil {
+			s.log.Named("StampByUserId").Error("CreateAnswer", zap.Error(err))
+			return nil, status.Error(codes.Internal, err.Error())
+		}
 	}
 
 	tempStrStamp[actIdx] = '1'
