@@ -39,7 +39,7 @@ func (s *SelectionServiceTestSuite) SetupTest() {
 	s.mockCache = mock_cache.NewMockRepository(s.ctrl)
 	s.logger = zap.NewNop()
 	s.config = &config.SelectionConfig{CacheTTL: 3600}
-	s.service = service.NewService(s.mockRepo, s.mockCache, s.config, s.logger)
+	s.service = service.NewService(s.mockRepo, nil, s.mockCache, s.config, s.logger)
 	s.ctx = context.Background()
 }
 
