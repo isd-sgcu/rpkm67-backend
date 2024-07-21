@@ -95,6 +95,21 @@ func (mr *MockServiceMockRecorder) FindByGroupId(arg0, arg1 interface{}) *gomock
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByGroupId", reflect.TypeOf((*MockService)(nil).FindByGroupId), arg0, arg1)
 }
 
+// Update mocks base method.
+func (m *MockService) Update(arg0 context.Context, arg1 *v1.UpdateSelectionRequest) (*v1.UpdateSelectionResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Update", arg0, arg1)
+	ret0, _ := ret[0].(*v1.UpdateSelectionResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Update indicates an expected call of Update.
+func (mr *MockServiceMockRecorder) Update(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockService)(nil).Update), arg0, arg1)
+}
+
 // mustEmbedUnimplementedSelectionServiceServer mocks base method.
 func (m *MockService) mustEmbedUnimplementedSelectionServiceServer() {
 	m.ctrl.T.Helper()

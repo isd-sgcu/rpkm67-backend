@@ -8,6 +8,7 @@ import (
 type Repository interface {
 	FindByUserId(userId string, stamp *model.Stamp) error
 	StampByUserId(userId string, stamp *model.Stamp) error
+	CreateAnswer(answer *model.Answer) error
 }
 
 type repositoryImpl struct {
@@ -26,4 +27,8 @@ func (r *repositoryImpl) FindByUserId(userId string, stamp *model.Stamp) error {
 
 func (r *repositoryImpl) StampByUserId(userId string, stamp *model.Stamp) error {
 	return r.Db.Model(stamp).Where("user_id = ?", userId).Updates(stamp).Error
+}
+
+func (r *repositoryImpl) CreateAnswer(answer *model.Answer) error {
+	return r.Db.Create(answer).Error
 }
