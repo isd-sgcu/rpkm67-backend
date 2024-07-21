@@ -64,17 +64,17 @@ func (mr *MockRepositoryMockRecorder) Create(user interface{}) *gomock.Call {
 }
 
 // Delete mocks base method.
-func (m *MockRepository) Delete(id string) error {
+func (m *MockRepository) Delete(groupId, baanId string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Delete", id)
+	ret := m.ctrl.Call(m, "Delete", groupId, baanId)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Delete indicates an expected call of Delete.
-func (mr *MockRepositoryMockRecorder) Delete(id interface{}) *gomock.Call {
+func (mr *MockRepositoryMockRecorder) Delete(groupId, baanId interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockRepository)(nil).Delete), id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockRepository)(nil).Delete), groupId, baanId)
 }
 
 // FindByGroupId mocks base method.
@@ -89,4 +89,46 @@ func (m *MockRepository) FindByGroupId(groupId string, selections *[]model.Selec
 func (mr *MockRepositoryMockRecorder) FindByGroupId(groupId, selections interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByGroupId", reflect.TypeOf((*MockRepository)(nil).FindByGroupId), groupId, selections)
+}
+
+// UpdateExistBaanExistOrder mocks base method.
+func (m *MockRepository) UpdateExistBaanExistOrder(updateSelection *model.Selection) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateExistBaanExistOrder", updateSelection)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateExistBaanExistOrder indicates an expected call of UpdateExistBaanExistOrder.
+func (mr *MockRepositoryMockRecorder) UpdateExistBaanExistOrder(updateSelection interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateExistBaanExistOrder", reflect.TypeOf((*MockRepository)(nil).UpdateExistBaanExistOrder), updateSelection)
+}
+
+// UpdateExistBaanNewOrder mocks base method.
+func (m *MockRepository) UpdateExistBaanNewOrder(updateSelection *model.Selection) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateExistBaanNewOrder", updateSelection)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateExistBaanNewOrder indicates an expected call of UpdateExistBaanNewOrder.
+func (mr *MockRepositoryMockRecorder) UpdateExistBaanNewOrder(updateSelection interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateExistBaanNewOrder", reflect.TypeOf((*MockRepository)(nil).UpdateExistBaanNewOrder), updateSelection)
+}
+
+// UpdateNewBaanExistOrder mocks base method.
+func (m *MockRepository) UpdateNewBaanExistOrder(updateSelection *model.Selection) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateNewBaanExistOrder", updateSelection)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateNewBaanExistOrder indicates an expected call of UpdateNewBaanExistOrder.
+func (mr *MockRepositoryMockRecorder) UpdateNewBaanExistOrder(updateSelection interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateNewBaanExistOrder", reflect.TypeOf((*MockRepository)(nil).UpdateNewBaanExistOrder), updateSelection)
 }

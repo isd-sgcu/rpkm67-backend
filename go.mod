@@ -5,8 +5,8 @@ go 1.22.4
 require (
 	github.com/golang/mock v1.6.0
 	github.com/google/uuid v1.6.0
-	github.com/isd-sgcu/rpkm67-go-proto v0.4.8
-	github.com/isd-sgcu/rpkm67-model v0.1.0
+	github.com/isd-sgcu/rpkm67-go-proto v0.5.3
+	github.com/isd-sgcu/rpkm67-model v0.2.0
 	github.com/joho/godotenv v1.5.1
 	github.com/redis/go-redis/v9 v9.5.3
 	github.com/stretchr/testify v1.9.0
