@@ -1,0 +1,32 @@
+name: Send Messages
+
+on:
+  workflow_call:
+    inputs:
+      IMAGE_TAG:
+        required: true
+        type: string
+
+jobs:
+  send_message:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Send message to Discord
+      run: |
+        curl -X POST -H "Content-Type: application/json" \
+        -H "Authorization: Bot ${{ secrets.RPKM67_DISCORD_API_KEY }}" \
+        -d "{
+              \"content\": \"A new push has been made to the **${{ github.event.pull_request.base.ref }}** branch by ${{ github.actor }}!\",
+              \"embeds\": [
+                {
+                  \"author\": {
+                    \"name\": \"${{ github.actor }}\",
+                    \"icon_url\": \"https://github.com/${{ github.actor }}.png\"
+                  },
+                  \"description\": \"**Service Name:** ${{ github.repository }}\n\n**Version:**\n${{ inputs.IMAGE_TAG }}\n\n**Details:**\n${{ github.event.pull_request.title || github.event.head_commit.message }}\",
+                  \"color\": 5814783
+                }
+              ]
+            }" \
+        ${{ secrets.RPKM67_DISCORD_WEBHOOK_URL }}
