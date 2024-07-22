@@ -10,7 +10,7 @@ on:
       - dev
 
 env:
-  SERVICE_NAME: rpkm67-gateway
+  SERVICE_NAME: rpkm67-backend
   IMAGE_NAME: ghcr.io/${{ github.repository }}
   IMAGE_TAG: <WILL_BE_SET>
 
