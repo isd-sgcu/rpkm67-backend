@@ -10,7 +10,7 @@ on:
       - dev
 
 env:
-  SERVICE_NAME: rpkm67-backend
+  SERVICE_NAME: rpkm67-gateway
   IMAGE_NAME: ghcr.io/${{ github.repository }}
   IMAGE_TAG: <WILL_BE_SET>
 
@@ -61,6 +61,13 @@ jobs:
           cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache
           cache-to: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache,mode=max
   
+  send_message:
+    needs: build
+    uses: ./.github/workflows/send-message.yml
+    secrets: inherit
+    with:
+      IMAGE_TAG: ${{ needs.build.outputs.IMAGE_TAG }}
+  
   cd:
     name: Continuous Deployment
     needs: build
@@ -91,3 +98,4 @@ jobs:
         with:
           repository: isd-sgcu/rpkm67-devops
           github_token: ${{ secrets.RPKM67_DEVOPS_TOKEN }}
+  
